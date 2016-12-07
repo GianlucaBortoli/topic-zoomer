@@ -17,10 +17,11 @@ def remove_punctuation(text):  # remove punctuation
 
 def topic_render(x):  # specify vector id of words to actual words
     terms = x[0]
+    prob = x[1]
     result = []
     for i in range(wordNumbers):
         term = vocabArray[terms[i]]
-        result.append(term)
+        result.append((term, prob[i]))
     return result
 
 
@@ -49,8 +50,16 @@ print("Learned topics (as distributions over vocab of {} words".format(ldaModel.
 wordNumbers = 10  # number of words per topic
 topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
 topics_final = topicIndices.map(lambda x: topic_render(x)).collect()
+topics_label = []
+for topic in topics_final:
+    for topic_term in topic:
+        if topic_term[0] not in topics_label:
+            topics_label.append(topic_term[0])
+            break
+
+
 # Print topics
 for topic in range(len(topics_final)):
-    print("Topic" + str(topic))
+    print("Topic " + str(topics_label[topic]))
     for term in topics_final[topic]:
         print('\t', term)
