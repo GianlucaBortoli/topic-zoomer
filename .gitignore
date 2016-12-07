@@ -87,3 +87,9 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# pycharm stuff
+.idea
+
+# vim temp files
+*.swp
