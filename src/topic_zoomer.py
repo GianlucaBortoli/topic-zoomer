@@ -4,10 +4,10 @@ from pyspark.mllib.clustering import LDA, LDAModel
 from pyspark.mllib.linalg import Vectors, DenseVector
 from pyspark.ml.feature import StopWordsRemover
 from pyspark import SparkContext
+from collections import namedtuple
 import re
 import csv
 import os
-from collections import namedtuple
 os.environ['SPARK_HOME'] = "/home/pier/BigData/spark"
 
 reg = r"[^a-zA-Z| 0-9 | \']"
@@ -19,8 +19,8 @@ p3 = point(0, 0)
 p4 = point(100, 0)
 
 
+
 def remove_punctuation(text):  # remove punctuation
-    print(text)
     return reg_compiled.sub('', text)
 
 
@@ -45,21 +45,29 @@ def check_area(row):
         return text
 
 
+def split_string_into_array(row):
+    return row.lower().strip().split(" ")
+
+
+def remove_empty_array(array):
+    return array[0] != ''
+
+
+def create_row(array):
+    return Row(idd=array[1], words=array[0])
+
 
 # Load and parse the data
 sc = SparkContext(appName="Project", master="spark://localhost.localdomain:7077")
-
 sqlContext = SQLContext(sc)
-path = "input/dataset.csv"
+path = "input/synthetic_dataset.csv"
 data = sc.textFile(path)
-data = data.mapPartitions(lambda x : csv.reader(x))
+data = data.mapPartitions(lambda x: csv.reader(x))
 header = data.first()
-data = data.filter(lambda x : x != header)
+data = data.filter(lambda x: x != header)
 data = data.map(check_area).filter(lambda x: x is not None)
-print(data.collect())
-
-data = data.map(remove_punctuation).map(lambda x: x.lower().strip().split(" ")).filter(
-    lambda x: x[0] != '').zipWithIndex().map(lambda x: Row(idd=x[1], words=x[0]))
+data = data.map(remove_punctuation).map(split_string_into_array).filter(remove_empty_array).\
+    zipWithIndex().map(create_row)
 docDF = sqlContext.createDataFrame(data)
 StopWordsRemover.loadDefaultStopWords('english')
 remover = StopWordsRemover(inputCol="words", outputCol="filtered")
