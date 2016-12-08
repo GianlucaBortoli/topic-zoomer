@@ -19,7 +19,6 @@ p3 = point(0, 0)
 p4 = point(100, 0)
 
 
-
 def remove_punctuation(text):  # remove punctuation
     return reg_compiled.sub('', text)
 
@@ -34,14 +33,18 @@ def topic_render(x):  # specify vector id of words to actual words
     return result
 
 
+def create_corpus(x):
+    return [x[0], DenseVector(x[1].toArray())]
+
+
 def check_area(row):
     x = int(row[0])
     y = int(row[1])
     text = row[2]
-    if p1.y>=y and p2.y>=y and \
+    if p1.y >= y and p2.y >= y and \
                     p3.y <= y and p4.y <= y and \
-                    p1.x<=x and p2.x >= x and \
-                    p3.x<=x and p4.x >= x:
+                    p1.x <= x and p2.x >= x and \
+                    p3.x <= x and p4.x >= x:
         return text
 
 
@@ -76,7 +79,7 @@ Vector = CountVectorizer(inputCol="filtered", outputCol="vectors")
 model = Vector.fit(newDocDF)
 result = model.transform(newDocDF)
 corpus_size = result.count()  # total number of words
-corpus = result.select("idd", "vectors").rdd.map(lambda x: [x[0], DenseVector(x[1].toArray())]).cache()
+corpus = result.select("idd", "vectors").rdd.map(create_corpus).cache()
 # Cluster the documents into three topics using LDA
 ldaModel = LDA.train(corpus, k=5, maxIterations=100, optimizer='online')
 topics = ldaModel.topicsMatrix()
