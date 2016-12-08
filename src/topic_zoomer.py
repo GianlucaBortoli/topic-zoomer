@@ -1,74 +1,33 @@
-from pyspark.sql import SQLContext, Row
-from pyspark.ml.feature import CountVectorizer
-from pyspark.mllib.clustering import LDA, LDAModel
-from pyspark.mllib.linalg import Vectors, DenseVector
-from pyspark.ml.feature import StopWordsRemover
-from pyspark import SparkContext
-from collections import namedtuple
-import re
 import csv
 import os
+from collections import namedtuple
+from pyspark.sql import SQLContext
+from pyspark import SparkContext
+from pyspark.ml.feature import CountVectorizer
+from pyspark.ml.feature import StopWordsRemover
+from pyspark.mllib.clustering import LDA
+
+from topic_zoomer_functions import *
+
 os.environ['SPARK_HOME'] = "/home/pier/BigData/spark"
 
-reg = r"[^a-zA-Z| 0-9 | \']"
-reg_compiled = re.compile(reg)
 point = namedtuple('Point', ['x', 'y'])
 p1 = point(0, 100)
 p2 = point(100, 100)
 p3 = point(0, 0)
 p4 = point(100, 0)
 
-
-def remove_punctuation(text):  # remove punctuation
-    return reg_compiled.sub('', text)
-
-
-def topic_render(x):  # specify vector id of words to actual words
-    terms = x[0]
-    prob = x[1]
-    result = []
-    for i in range(wordNumbers):
-        term = vocabArray[terms[i]]
-        result.append((term, prob[i]))
-    return result
-
-
-def create_corpus(x):
-    return [x[0], DenseVector(x[1].toArray())]
-
-
-def check_area(row):
-    x = int(row[0])
-    y = int(row[1])
-    text = row[2]
-    if p1.y >= y and p2.y >= y and \
-                    p3.y <= y and p4.y <= y and \
-                    p1.x <= x and p2.x >= x and \
-                    p3.x <= x and p4.x >= x:
-        return text
-
-
-def split_string_into_array(row):
-    return row.lower().strip().split(" ")
-
-
-def remove_empty_array(array):
-    return array[0] != ''
-
-
-def create_row(array):
-    return Row(idd=array[1], words=array[0])
-
-
 # Load and parse the data
-sc = SparkContext(appName="Project", master="spark://localhost.localdomain:7077")
+sc = SparkContext(appName="Project", master="spark://localhost.localdomain:7077",
+                  pyFiles=["src/topic_zoomer_functions.py"])
+sc.addPyFile("src/topic_zoomer_functions.py")
 sqlContext = SQLContext(sc)
 path = "input/synthetic_dataset.csv"
 data = sc.textFile(path)
 data = data.mapPartitions(lambda x: csv.reader(x))
 header = data.first()
 data = data.filter(lambda x: x != header)
-data = data.map(check_area).filter(lambda x: x is not None)
+data = data.map(lambda x: check_area(x, p1, p2, p3, p4)).filter(lambda x: x is not None)
 data = data.map(remove_punctuation).map(split_string_into_array).filter(remove_empty_array).\
     zipWithIndex().map(create_row)
 docDF = sqlContext.createDataFrame(data)
@@ -87,7 +46,7 @@ vocabArray = model.vocabulary
 print("Learned topics (as distributions over vocab of {} words".format(ldaModel.vocabSize()))
 wordNumbers = 10  # number of words per topic
 topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
-topics_final = topicIndices.map(lambda x: topic_render(x)).collect()
+topics_final = topicIndices.map(lambda x: topic_render(x, wordNumbers, vocabArray)).collect()
 topics_label = []
 for topic in topics_final:
     for topic_term in topic:
