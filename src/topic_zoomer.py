@@ -8,7 +8,7 @@ from pyspark.mllib.clustering import LDA
 from utils import *
 import csv, os, sys, argparse, logging
 
-def compute(topLeft, bottomRight, step, datasetPath, master):
+def compute(topLeft, bottomRight, step, datasetPath, master, k):
     # TODO: implement step stuff
     if master is None:
         master = "local[2]"
@@ -16,7 +16,6 @@ def compute(topLeft, bottomRight, step, datasetPath, master):
     sc = SparkContext(appName="topic_zoomer", 
         master=master,
         pyFiles=["./utils.py"])
-    #sc.addPyFile("./utils.py")
 
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
@@ -30,17 +29,18 @@ def compute(topLeft, bottomRight, step, datasetPath, master):
         filter(remove_empty_array).\
         zipWithIndex().\
         map(create_row)
+
     docDF = sqlContext.createDataFrame(data)
     StopWordsRemover.loadDefaultStopWords('english')
-    remover = StopWordsRemover(inputCol="words", outputCol="filtered")
-    newDocDF = remover.transform(docDF)
-    Vector = CountVectorizer(inputCol="filtered", outputCol="vectors")
-    model = Vector.fit(newDocDF)
+    newDocDF = StopWordsRemover(inputCol="words", outputCol="filtered").\
+        transform(docDF)
+    model = CountVectorizer(inputCol="filtered", outputCol="vectors").\
+        fit(newDocDF)
     result = model.transform(newDocDF)
-    corpus_size = result.count()  # total number of words
+    corpus_size = result.count()
     corpus = result.select("idd", "vectors").rdd.map(create_corpus).cache()
     # cluster the documents into three topics using LDA
-    ldaModel = LDA.train(corpus, k=5, maxIterations=100, optimizer='online')
+    ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
     topics = ldaModel.topicsMatrix()
     vocabArray = model.vocabulary
     print("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
@@ -56,7 +56,7 @@ def compute(topLeft, bottomRight, step, datasetPath, master):
                 break
     # print topics
     for topic in range(len(topics_final)):
-        print("Topic " + str(topics_label[topic]))
+        print("Topic '{}'".format(str(topics_label[topic])))
         for term in topics_final[topic]:
             print('\t', term)
 
@@ -64,9 +64,10 @@ def compute(topLeft, bottomRight, step, datasetPath, master):
 if __name__ == '__main__':
     logging.basicConfig(filename='topic_zoomer.log', format='%(levelname)s: %(message)s', level=logging.INFO)
     # command line arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--sparkhome', type=str, help='the SPARK_HOME path. Overrides systemwhide env variable')
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--sparkhome', type=str, help='the SPARK_HOME path')
     parser.add_argument('--master', type=str, help='the master url')
+    parser.add_argument('--k', type=int, help='the number of topics to be found', default=5)
     required = parser.add_argument_group('required named arguments')
     required.add_argument('--tlx', type=float, help='top left point x coordinate', required=True)
     required.add_argument('--tly', type=float, help='top left point y coordinate', required=True)
@@ -85,4 +86,6 @@ if __name__ == '__main__':
     Point = namedtuple('Point', ['x', 'y'])
     topLeft = Point(args.tlx, args.tly)
     bottomRight = Point(args.brx, args.bry)
-    compute(topLeft, bottomRight, args.step, args.dataset, args.master)
+    logging.info("Top left = ({},{})".format(topLeft.x, topLeft.y))
+    logging.info("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
+    compute(topLeft, bottomRight, args.step, args.dataset, args.master, args.k)
