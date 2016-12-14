@@ -8,15 +8,8 @@ from pyspark.mllib.clustering import LDA
 from utils import *
 import csv, os, sys, argparse, logging
 
-def compute(topLeft, bottomRight, step, datasetPath, master, k):
+def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     # TODO: implement step stuff
-    if master is None:
-        master = "local[2]"
-
-    sc = SparkContext(appName="topic_zoomer", 
-        master=master,
-        pyFiles=["./utils.py"])
-
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
     data = data.mapPartitions(lambda x: csv.reader(x))
@@ -43,7 +36,7 @@ def compute(topLeft, bottomRight, step, datasetPath, master, k):
     ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
     topics = ldaModel.topicsMatrix()
     vocabArray = model.vocabulary
-    print("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
+    logging.info("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
     wordNumbers = 10  # number of words per topic
     topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
     topics_final = topicIndices.map(lambda x: topic_render(x, wordNumbers, vocabArray)).collect()
@@ -56,9 +49,9 @@ def compute(topLeft, bottomRight, step, datasetPath, master, k):
                 break
     # print topics
     for topic in range(len(topics_final)):
-        print("Topic '{}'".format(str(topics_label[topic])))
+        logging.info("Topic '{}'".format(str(topics_label[topic])))
         for term in topics_final[topic]:
-            print('\t', term)
+            logging.info('\t ({}, {})'.format(term[0], term[1]))
 
 
 if __name__ == '__main__':
@@ -88,4 +81,12 @@ if __name__ == '__main__':
     bottomRight = Point(args.brx, args.bry)
     logging.info("Top left = ({},{})".format(topLeft.x, topLeft.y))
     logging.info("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
-    compute(topLeft, bottomRight, args.step, args.dataset, args.master, args.k)
+
+    if args.master is None:
+        args.master = "local[2]"
+
+    sc = SparkContext(appName="topic_zoomer",
+        master=args.master,
+        pyFiles=["./utils.py"])
+
+    compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k)
