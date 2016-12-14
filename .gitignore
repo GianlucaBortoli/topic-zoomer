@@ -93,3 +93,6 @@ ENV/
 
 # vim temp files
 *.swp
+
+# logfiles
+*.log
