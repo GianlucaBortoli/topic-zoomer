@@ -9,14 +9,18 @@ from utils import *
 import csv, os, sys, argparse, logging
 
 def compute(sc, topLeft, bottomRight, step, datasetPath, k):
-    # TODO: implement step stuff
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
     data = data.mapPartitions(lambda x: csv.reader(x))
     header = data.first()
     data = data.filter(lambda x: x != header)
-    data = data.map(lambda x: is_inside(x, topLeft, bottomRight)).\
-        filter(lambda x: x is not None)
+
+    squares = get_squares(topLeft, bottomRight, step)
+
+    data = data.map(lambda x: is_inside(x, topLeft, bottomRight, step, squares)).\
+        filter(lambda x: x[1] is not None)
+    # TODO: now I need to distinguish between texts in differents little squares
+    # maybe turn it into a reduce?
     data = data.map(remove_punctuation).\
         map(split_string_into_array).\
         filter(remove_empty_array).\
@@ -32,7 +36,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     result = model.transform(newDocDF)
     corpus_size = result.count()
     corpus = result.select("idd", "vectors").rdd.map(create_corpus).cache()
-    # cluster the documents into three topics using LDA
+    # cluster the documents into the k topics using LDA
     ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
     topics = ldaModel.topicsMatrix()
     vocabArray = model.vocabulary
