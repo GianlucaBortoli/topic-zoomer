@@ -18,13 +18,11 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     squares = get_squares(topLeft, bottomRight, step)
 
     data = data.map(lambda x: is_inside(x, topLeft, bottomRight, step, squares)).\
-        filter(lambda x: x[1] is not None)
-    # TODO: now I need to distinguish between texts in differents little squares
-    # maybe turn it into a reduce?
+        filter(lambda x: x is not None)
+
     data = data.map(remove_punctuation).\
         map(split_string_into_array).\
         filter(remove_empty_array).\
-        zipWithIndex().\
         map(create_row)
 
     docDF = sqlContext.createDataFrame(data)
@@ -43,19 +41,19 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     logging.info("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
     wordNumbers = 10  # number of words per topic
     topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
-    topics_final = topicIndices.map(lambda x: topic_render(x, wordNumbers, vocabArray)).collect()
+
+    toBePrinted = min(len(vocabArray), wordNumbers)
+    topics_final = topicIndices.map(lambda x: topic_render(x, toBePrinted, vocabArray)).collect()
     # compute labels
     topics_label = []
     for topic in topics_final:
         for topic_term in topic:
-            if topic_term[0] not in topics_label:
-                topics_label.append(topic_term[0])
+            if topic_term not in topics_label:
+                topics_label.append(topic_term)
                 break
     # print topics
     for topic in range(len(topics_final)):
         logging.info("Topic '{}'".format(str(topics_label[topic])))
-        for term in topics_final[topic]:
-            logging.info('\t ({}, {})'.format(term[0], term[1]))
 
 
 if __name__ == '__main__':
