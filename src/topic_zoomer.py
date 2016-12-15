@@ -23,37 +23,50 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     data = data.map(remove_punctuation).\
         map(split_string_into_array).\
         filter(remove_empty_array).\
-        map(create_row)
+        groupByKey().\
+        map(lambda x : (x[0], list(x[1])))#.\
+        #map(create_row)
 
-    docDF = sqlContext.createDataFrame(data)
-    StopWordsRemover.loadDefaultStopWords('english')
-    newDocDF = StopWordsRemover(inputCol="words", outputCol="filtered").\
-        transform(docDF)
-    model = CountVectorizer(inputCol="filtered", outputCol="vectors").\
-        fit(newDocDF)
-    result = model.transform(newDocDF)
-    corpus_size = result.count()
-    corpus = result.select("idd", "vectors").rdd.map(create_corpus).cache()
-    # cluster the documents into the k topics using LDA
-    ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
-    topics = ldaModel.topicsMatrix()
-    vocabArray = model.vocabulary
-    logging.info("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
-    wordNumbers = 10  # number of words per topic
-    topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
+    # split whole dataset into squares with the step
+    splittedDF = [[] for i in range(data.count())]
+    for i in data.collect():
+        for word in i[1]:
+            splittedDF[i[0]].append(Row(idd=i[0], words=word))
+    # create the dataframes
+    allDf = []
+    for df in splittedDF:
+        allDf.append(sqlContext.createDataFrame(df))
 
-    toBePrinted = min(len(vocabArray), wordNumbers)
-    topics_final = topicIndices.map(lambda x: topic_render(x, toBePrinted, vocabArray)).collect()
-    # compute labels
-    topics_label = []
-    for topic in topics_final:
-        for topic_term in topic:
-            if topic_term not in topics_label:
-                topics_label.append(topic_term)
-                break
-    # print topics
-    for topic in range(len(topics_final)):
-        logging.info("Topic '{}'".format(str(topics_label[topic])))
+    for docDF in allDf:
+        squareId = docDF.select('idd').distinct().collect()
+        StopWordsRemover.loadDefaultStopWords('english')
+        newDocDF = StopWordsRemover(inputCol="words", outputCol="filtered").\
+            transform(docDF)
+        model = CountVectorizer(inputCol="filtered", outputCol="vectors").\
+            fit(newDocDF)
+        result = model.transform(newDocDF)
+        corpus_size = result.count()
+        corpus = result.select("idd", "vectors").rdd.map(create_corpus).cache()
+        # cluster the documents into the k topics using LDA
+        ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
+        topics = ldaModel.topicsMatrix()
+        vocabArray = model.vocabulary
+        logging.info("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
+        wordNumbers = 10  # number of words per topic
+        topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
+
+        toBePrinted = min(len(vocabArray), wordNumbers)
+        topics_final = topicIndices.map(lambda x: topic_render(x, toBePrinted, vocabArray)).collect()
+        # compute labels
+        topics_label = []
+        for topic in topics_final:
+            for topic_term in topic:
+                if topic_term not in topics_label:
+                    topics_label.append(topic_term)
+                    break
+        # print topics
+        for topic in topics_label:
+            logging.info("Square: {} -> topic: {}".format(squareId, topic))
 
 
 if __name__ == '__main__':
