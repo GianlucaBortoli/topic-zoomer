@@ -44,6 +44,7 @@ def is_inside(row, topLeft, bottomRight, step, squares):
             else:
                 idx += 1
 
+
 def split_string_into_array(row):
     return row[0], row[1].lower().strip().split(" ")
 
@@ -53,7 +54,9 @@ def remove_empty_array(array):
 
 
 def create_row(array):
-    return Row(idd=array[0], words=array[1])
+    id = array[0]
+    words = array[1]
+    return id, Row(idd=id, words=words)
 
 
 # Determine if a point is inside a given square or not
@@ -67,20 +70,21 @@ def point_inside_square(x, y, square):
     else:
         return False
 
-# topLeft and bottomRight are named touples
+
+# topLeft and bottomRight are named tuples
 def get_squares(topLeft, bottomRight, step):
     # every little square is defined as topLeft and
     # bottomRight angles (as namedtuples)
     Point = namedtuple('Point', ['x', 'y'])
     out = []
 
-    xMin = topLeft.x
-    xMax = topLeft.x + step
     yMin = topLeft.y
     yMax = topLeft.y - step
 
-    while (yMax >= bottomRight.y):
-        while (xMax <= bottomRight.x):
+    while yMax >= bottomRight.y:
+        xMin = topLeft.x
+        xMax = topLeft.x + step
+        while xMax <= bottomRight.x:
             square = [Point(xMin, yMin), Point(xMax, yMax)]
             out.append(square)
             # update x boundaries
@@ -89,5 +93,4 @@ def get_squares(topLeft, bottomRight, step):
         # update y boundaries
         yMin = yMax
         yMax -= step
-
     return out

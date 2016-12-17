@@ -8,6 +8,7 @@ from pyspark.mllib.clustering import LDA
 from utils import *
 import csv, os, sys, argparse, logging
 
+
 def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
@@ -16,27 +17,20 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     data = data.filter(lambda x: x != header)
 
     squares = get_squares(topLeft, bottomRight, step)
-
     data = data.map(lambda x: is_inside(x, topLeft, bottomRight, step, squares)).\
         filter(lambda x: x is not None)
 
     data = data.map(remove_punctuation).\
         map(split_string_into_array).\
         filter(remove_empty_array).\
+        map(create_row).\
         groupByKey().\
-        map(lambda x : (x[0], list(x[1])))#.\
-        #map(create_row)
-
-    # split whole dataset into squares with the step
-    splittedDF = [[] for i in range(data.count())]
-    for i in data.collect():
-        for word in i[1]:
-            splittedDF[i[0]].append(Row(idd=i[0], words=word))
+        map(lambda x : (x[0], list(x[1])))
     # create the dataframes
     allDf = []
-    for df in splittedDF:
-        allDf.append(sqlContext.createDataFrame(df))
-
+    for df in data.collect():
+        if df:
+            allDf.append(sqlContext.createDataFrame(df[1]))
     for docDF in allDf:
         squareId = docDF.select('idd').distinct().collect()
         StopWordsRemover.loadDefaultStopWords('english')
