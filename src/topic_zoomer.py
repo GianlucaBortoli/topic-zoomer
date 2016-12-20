@@ -90,6 +90,7 @@ if __name__ == '__main__':
     bottomRight = Point(args.brx, args.bry)
     logging.info("Top left = ({},{})".format(topLeft.x, topLeft.y))
     logging.info("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
+    logging.info("Step = {}".format(args.step))
 
     if args.master is None:
         args.master = "local[2]"
