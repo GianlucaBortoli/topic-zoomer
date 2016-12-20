@@ -1,5 +1,9 @@
 # topic-zoomer
-Big Data course project
+This is the project for the Big Data course at the University of Trento.
+
+The goal is to categorise geolocalised URLs. It is possible to select an area of
+interest by means of a top left and a bottom right point and a step S to further
+divide this area into squares (of size SxS).
 
 # Requirements
 * python3
