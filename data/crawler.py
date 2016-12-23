@@ -54,8 +54,8 @@ def main(inputFile, outputFile, _min, _max):
             for t in results:
                 # write text back into csv with fake geotags
                 writer.writerow({
-                    'x': int(random.uniform(_min, _max)),
-                    'y': int(random.uniform(_min, _max)),
+                    'x': round(random.uniform(_min, _max), 3),
+                    'y': round(random.uniform(_min, _max), 3),
                     'text': t
                 })
     except KeyboardInterrupt:

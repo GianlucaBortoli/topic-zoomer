@@ -29,8 +29,8 @@ def create_corpus(x):
 
 
 def is_inside(row, topLeft, bottomRight, step, squares):
-    x = int(row[0])
-    y = int(row[1])
+    x = float(row[0])
+    y = float(row[1])
     text = row[2]
     idx = 0
 
