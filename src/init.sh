@@ -1,15 +1,12 @@
 #!/bin/bash
 
-if [ $# -eq 0 ]; then
-  echo "No pip requirements file provided"
-  exit 1
-fi
-
-REQS=$1 # the requirements.txt file
-
+# download files from bucket
+gsutil cp gs://topic-zoomer/requirements.txt .
+# install deps
 sudo apt-get install -y python3-pip
-sudo pip3 install -r "$REQS"
-
-# set python3 as default
-sudo rm /usr/bin/python
-sudo ln -s /usr/bin/python3 /usr/bin/python
+sudo pip3 install -r requirements.txt
+# setup python3 support
+# see https://blog.sourced.tech/post/dataproc_jupyter/
+echo "export PYSPARK_PYTHON=python3" | tee -a  /etc/profile.d/spark_config.sh  /etc/*bashrc /usr/lib/spark/conf/spark-env.sh
+echo "export PYTHONHASHSEED=0" | tee -a /etc/profile.d/spark_config.sh /etc/*bashrc /usr/lib/spark/conf/spark-env.sh
+echo "spark.executorEnv.PYTHONHASHSEED=0" >> /etc/spark/conf/spark-defaults.conf
