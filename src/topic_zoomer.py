@@ -64,26 +64,21 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
 
 
 if __name__ == '__main__':
+    # NOTE: env variable SPARK_HOME has to be set in advance
+    # The check on the number of parameters is done automatically
+    # by the argparse package
     logging.basicConfig(filename='topic_zoomer.log', format='%(levelname)s: %(message)s', level=logging.INFO)
     # command line arguments
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--sparkhome', type=str, help='the SPARK_HOME path')
-    parser.add_argument('--master', type=str, help='the master url')
-    parser.add_argument('--k', type=int, help='the number of topics to be found', default=5)
-    required = parser.add_argument_group('required named arguments')
-    required.add_argument('--tlx', type=float, help='top left point x coordinate', required=True)
-    required.add_argument('--tly', type=float, help='top left point y coordinate', required=True)
-    required.add_argument('--brx', type=float, help='bottom right point x coordinate', required=True)
-    required.add_argument('--bry', type=float, help='bottom right point y coordinate', required=True)
-    required.add_argument('--step', type=float, help='the square side size', required=True)
-    required.add_argument('--dataset', type=str, help='the path to the input dataset', required=True)
+    parser.add_argument('master', type=str, help='the master url')
+    parser.add_argument('k', type=int, help='the number of topics to be found')
+    parser.add_argument('tlx', type=float, help='top left point x coordinate')
+    parser.add_argument('tly', type=float, help='top left point y coordinate')
+    parser.add_argument('brx', type=float, help='bottom right point x coordinate')
+    parser.add_argument('bry', type=float, help='bottom right point y coordinate')
+    parser.add_argument('step', type=float, help='the square side size')
+    parser.add_argument('dataset', type=str, help='the path to the input dataset')
     args = parser.parse_args()
-    # some error checks on input args
-    if args.sparkhome == None:
-        logging.info("Using system SPARK_HOME")
-    else:
-        logging.info("Setting SPARK_HOME to {}".format(args.sparkhome))
-        os.environ['SPARK_HOME'] = args.sparkhome
     # create area delimeter points
     Point = namedtuple('Point', ['x', 'y'])
     topLeft = Point(args.tlx, args.tly)
@@ -91,9 +86,6 @@ if __name__ == '__main__':
     logging.info("Top left = ({},{})".format(topLeft.x, topLeft.y))
     logging.info("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
     logging.info("Step = {}".format(args.step))
-
-    if args.master is None:
-        args.master = "local[2]"
 
     sc = SparkContext(appName="topic_zoomer",
         master=args.master,

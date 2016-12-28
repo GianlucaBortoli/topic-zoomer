@@ -7,8 +7,8 @@ divide this area into squares (of size SxS).
 
 # Requirements
 * python3
-* pip dependencies installed via `pip install -r requirements.txt`
-* working spark environment
+* pip dependencies installed via `pip install -r requirements.txt` (see _init.sh_ script)
+* working Spark environment
 
 # How to run the tool
 ## Example to generate the dataset from URL file
@@ -20,5 +20,5 @@ python crawler.py --input 100_wikipedia_urls --output out.csv --min 0 --max 100
 ## Example to run the topic extractor on Spark
 ```bash
 cd /path/to/repo/src
-/path/to/spark-submit topic_zoomer.py --tlx 0 --tly 100 --brx 100 --bry 0 --step 50 --dataset ../data/test.csv
+/path/to/spark-submit topic_zoomer.py "local[2]" 5 0 100 100 0 100 ../data/test.csv
 ```
