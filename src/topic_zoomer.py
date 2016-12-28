@@ -70,7 +70,6 @@ if __name__ == '__main__':
     logging.basicConfig(filename='topic_zoomer.log', format='%(levelname)s: %(message)s', level=logging.INFO)
     # command line arguments
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('master', type=str, help='the master url')
     parser.add_argument('k', type=int, help='the number of topics to be found')
     parser.add_argument('tlx', type=float, help='top left point x coordinate')
     parser.add_argument('tly', type=float, help='top left point y coordinate')
@@ -87,8 +86,5 @@ if __name__ == '__main__':
     logging.info("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
     logging.info("Step = {}".format(args.step))
 
-    sc = SparkContext(appName="topic_zoomer",
-        master=args.master,
-        pyFiles=["./utils.py"])
-
+    sc = SparkContext(appName="topic_zoomer", pyFiles=["./utils.py"])
     compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k)
