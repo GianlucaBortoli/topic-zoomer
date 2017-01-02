@@ -7,7 +7,7 @@ divide this area into squares (of size SxS).
 
 # Requirements
 * python3
-* pip dependencies installed via `pip install -r requirements.txt` (see _init.sh_ script)
+* pip dependencies installed via `pip install -r requirements.txt` (see `init.sh` script)
 * working Spark environment
 
 # How to run the tool
