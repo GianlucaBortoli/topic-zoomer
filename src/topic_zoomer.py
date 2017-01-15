@@ -63,7 +63,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     to_write = sc.parallelize(result_to_write)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    output_folder = "Topic_Zoomer_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + "_" + str(elapsed_time)
+    output_folder = "/tmp/Topic_Zoomer_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + "_" + str(elapsed_time)
     to_write.saveAsTextFile(output_folder)
     command = 'hdfs dfs -copyToLocal ' + output_folder + ' ' + output_folder
     print(os.popen(command).read())
