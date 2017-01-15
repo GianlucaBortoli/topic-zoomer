@@ -67,7 +67,8 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     to_write.saveAsTextFile(output_folder)
     command = 'hdfs dfs -copyToLocal ' + output_folder + ' ' + output_folder
     print(os.popen(command).read())
-
+    gfs_output_path = "gs://topic-zoomer/results/"
+    print(os.popen('gsutil cp -r ' + output_folder + ' ' + gfs_output_path).read())
 
 if __name__ == '__main__':
     # NOTE: env variable SPARK_HOME has to be set in advance
