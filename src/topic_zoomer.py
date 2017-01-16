@@ -16,6 +16,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     data = data.mapPartitions(lambda x: csv.reader(x))
     header = data.first()
     data = data.filter(lambda x: x != header)
+    num_lines = data.count()
     result_to_write = []
     squares = get_squares(topLeft, bottomRight, step)
     data = data.map(lambda x: is_inside(x, topLeft, bottomRight, step, squares)). \
@@ -63,7 +64,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     to_write = sc.parallelize(result_to_write)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    output_folder = "/tmp/Topic_Zoomer_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + "_" + str(elapsed_time)
+    output_folder = "/tmp/Topic_Zoomer_" + str(num_lines) + "_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + "_" + str(elapsed_time)
     to_write.saveAsTextFile(output_folder)
     command = 'hdfs dfs -copyToLocal ' + output_folder + ' ' + output_folder
     print(os.popen(command).read())
