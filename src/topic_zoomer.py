@@ -8,8 +8,10 @@ from pyspark.mllib.clustering import LDA
 from utils import *
 import csv, os, sys, argparse, logging, time
 
+gfs_output_path_hdfs = "gs://topic-zoomer/results/"
+gfs_output_path_log = "gs://topic-zoomer/"
 
-def compute(sc, topLeft, bottomRight, step, datasetPath, k):
+def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
     start_time = time.time()
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
@@ -64,17 +66,24 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k):
     to_write = sc.parallelize(result_to_write)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    output_folder = "/tmp/Topic_Zoomer_" + str(num_lines) + "_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + "_" + str(elapsed_time)
+    if gfs:
+        output_folder = "/tmp/Topic_Zoomer_" + str(num_lines) + "_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + "_" + str(elapsed_time)
+    else:
+        output_folder = "Topic_Zoomer_" + str(num_lines) + "_" + str(time.ctime(start_time)).replace(' ',
+                                                                                                          '_').replace(
+            ':', '-') + "_" + str(elapsed_time)
     to_write.saveAsTextFile(output_folder)
-    command = 'hdfs dfs -copyToLocal ' + output_folder + ' ' + output_folder
-    print(os.popen(command).read())
-    gfs_output_path = "gs://topic-zoomer/results/"
-    print(os.popen('gsutil cp -r ' + output_folder + ' ' + gfs_output_path).read())
+    if gfs:
+        command = 'hdfs dfs -copyToLocal ' + output_folder + ' ' + output_folder
+        os.popen(command)
+        os.popen('gsutil cp -r ' + output_folder + ' ' + gfs_output_path_hdfs)
 
 if __name__ == '__main__':
     # NOTE: env variable SPARK_HOME has to be set in advance
     # The check on the number of parameters is done automatically
     # by the argparse package
+    os.popen('rm topic_zoomer.log')
+    gfs = False
     logging.basicConfig(filename='topic_zoomer.log', format='%(levelname)s: %(message)s', level=logging.INFO)
     # command line arguments
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -93,6 +102,9 @@ if __name__ == '__main__':
     logging.info("Top left = ({},{})".format(topLeft.x, topLeft.y))
     logging.info("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
     logging.info("Step = {}".format(args.step))
-
+    if args.dataset[:3] == "gs:":
+        gfs = True
     sc = SparkContext(appName="topic_zoomer", pyFiles=["./utils.py"])
-    compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k)
+    compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs)
+    if gfs:
+        os.popen('gsutil cp -r topic_zoomer.log ' + gfs_output_path_log)
