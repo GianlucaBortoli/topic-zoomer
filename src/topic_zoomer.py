@@ -9,7 +9,7 @@ from utils import *
 import csv, os, sys, argparse, logging, time
 
 gfs_output_path_hdfs = "gs://topic-zoomer/results/"
-gfs_output_path_log = "gs://topic-zoomer/"
+
 
 def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
     start_time = time.time()
@@ -48,7 +48,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
         # cluster the documents into the k topics using LDA
         ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
         vocabArray = model.vocabulary
-        logging.info("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
+        print("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
         wordNumbers = 10  # number of words per topic
         topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
 
@@ -82,9 +82,7 @@ if __name__ == '__main__':
     # NOTE: env variable SPARK_HOME has to be set in advance
     # The check on the number of parameters is done automatically
     # by the argparse package
-    os.popen('rm topic_zoomer.log')
     gfs = False
-    logging.basicConfig(filename='topic_zoomer.log', format='%(levelname)s: %(message)s', level=logging.INFO)
     # command line arguments
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('k', type=int, help='the number of topics to be found')
@@ -99,12 +97,11 @@ if __name__ == '__main__':
     Point = namedtuple('Point', ['x', 'y'])
     topLeft = Point(args.tlx, args.tly)
     bottomRight = Point(args.brx, args.bry)
-    logging.info("Top left = ({},{})".format(topLeft.x, topLeft.y))
-    logging.info("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
-    logging.info("Step = {}".format(args.step))
+    print("Top left = ({},{})".format(topLeft.x, topLeft.y))
+    print("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
+    print("Step = {}".format(args.step))
     if args.dataset[:3] == "gs:":
         gfs = True
     sc = SparkContext(appName="topic_zoomer", pyFiles=["./utils.py"])
     compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs)
-    if gfs:
-        os.popen('gsutil cp -r topic_zoomer.log ' + gfs_output_path_log)
+
