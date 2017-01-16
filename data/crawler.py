@@ -1,6 +1,5 @@
 #!/usr/bin/env
 from multiprocessing import Pool, cpu_count
-from queue import Queue
 from bs4 import BeautifulSoup
 import argparse, requests, os, sys
 import csv, random
