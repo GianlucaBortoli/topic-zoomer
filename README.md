@@ -6,8 +6,8 @@ interest by means of a top left and a bottom right point and a step S to further
 divide this area into squares (of size SxS).
 
 # Requirements
-* python3
-* pip dependencies installed via `pip install -r requirements.txt` (see `init.sh` script)
+* python3 version<=3.5 (it will not work on python3.6 due to some incompatibility between python3.6 and pySpark)
+* pip dependencies installed via `pip install -r requirements.txt` (see _init.sh_ script)
 * working Spark environment
 
 # How to run the tool
