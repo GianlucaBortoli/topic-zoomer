@@ -46,8 +46,8 @@ def main(inputFile, outputFile):
     urls = []
     geo_urls = []
     with open(inputFile) as i:
-        #urls = i.readlines()
         geo_urls = list(csv.reader(i))
+
     print('Downloading from {} geotags...'.format(len(geo_urls)))
 
     try:
@@ -84,5 +84,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # get abs path from file
     ifilePath = os.path.abspath(args.input)
-    ofilePath = os.path.abspath(args.output) 
+    ofilePath = os.path.abspath(args.output)
+    # set csv reader field_size limit
+    csv.field_size_limit(sys.maxsize)
     main(ifilePath, ofilePath)
