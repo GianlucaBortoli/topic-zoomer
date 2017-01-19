@@ -8,19 +8,20 @@ from pyspark.mllib.clustering import LDA
 from utils import *
 import csv, os, sys, argparse, logging, time
 
+# global variables
 gfs_output_path_hdfs = "gs://topic-zoomer/results/"
 
 
 def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
-    start_time = time.time()
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
     data = data.mapPartitions(lambda x: csv.reader(x))
     header = data.first()
     data = data.filter(lambda x: x != header)
-    num_lines = data.count()
     result_to_write = []
     squares = get_squares(topLeft, bottomRight, step)
+    # start computing elapsed time here
+    start_time = time.time()
     data = data.map(lambda x: is_inside(x, topLeft, bottomRight, step, squares)). \
         filter(lambda x: x is not None)
 
@@ -63,20 +64,24 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
                     break
         # print topics
         result_to_write.append((squareId, topics_label))
-    to_write = sc.parallelize(result_to_write)
     end_time = time.time()
     elapsed_time = end_time - start_time
+    result_to_write.append(elapsed_time)
+    to_write = sc.parallelize(result_to_write)
+    # get dataset size from file name
+    size = datasetPath.split('.')[0].split('_')[1]
     if gfs:
-        output_folder = "/tmp/Topic_Zoomer_" + str(num_lines) + "_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + "_" + str(elapsed_time)
+        output_folder = "/tmp/Topic_Zoomer_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + '_' + size
     else:
-        output_folder = "Topic_Zoomer_" + str(num_lines) + "_" + str(time.ctime(start_time)).replace(' ',
-                                                                                                          '_').replace(
-            ':', '-') + "_" + str(elapsed_time)
+        output_folder = "Topic_Zoomer_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + '_' + size
+
     to_write.saveAsTextFile(output_folder)
+
     if gfs:
         command = 'hdfs dfs -copyToLocal ' + output_folder + ' ' + output_folder
         os.popen(command)
         os.popen('gsutil cp -r ' + output_folder + ' ' + gfs_output_path_hdfs)
+
 
 if __name__ == '__main__':
     # NOTE: env variable SPARK_HOME has to be set in advance
