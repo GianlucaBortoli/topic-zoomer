@@ -75,7 +75,7 @@ def main(inFile, outFileName):
     # create figure & save it
     plt.errorbar(x, y, yerr=[diffs_x, diffs_y], ecolor='red', elinewidth=1, fmt='o-')
     plt.xticks(x, x)
-    plt.xlabel('Dataset (%)')
+    plt.xlabel('% of the dataset')
     plt.ylabel('Time (s)')
     plt.savefig(outFileName + '.png')
     print("Done!")
@@ -84,11 +84,11 @@ def main(inFile, outFileName):
 if __name__ == '__main__':
     # NOTE: csv's rows _must_ be ordered incrementally wrt id
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--input', type=str, 
-        help='the input file with data to be displayed', 
+    parser.add_argument('--input', type=str,
+        help='the input file with data to be displayed',
         required=True)
-    parser.add_argument('--output', type=str, 
-        help='the output file name for the chart (wo extension)', 
+    parser.add_argument('--output', type=str,
+        help='the output file name for the chart (wo extension)',
         required=True)
     args = parser.parse_args()
     main(os.path.abspath(args.input),

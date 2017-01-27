@@ -52,7 +52,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
         newDocDF_ger = StopWordsRemover(inputCol="filtered_ita", outputCol="filtered_ger"). \
             transform(newDocDF_ita)
         newDocDF_ger= newDocDF_ger.drop('filtered_ita')
-        print(newDocDF_ger.collect())
+        #print(newDocDF_ger.collect())
         model = CountVectorizer(inputCol="filtered_ger", outputCol="vectors"). \
             fit(newDocDF_ger)
         result = model.transform(newDocDF_ger)
@@ -60,7 +60,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
         # cluster the documents into the k topics using LDA
         ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
         vocabArray = model.vocabulary
-        print("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
+        #print("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
         wordNumbers = 10  # number of words per topic
         topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
 
