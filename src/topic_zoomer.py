@@ -7,6 +7,7 @@ from pyspark.ml.feature import StopWordsRemover
 from pyspark.mllib.clustering import LDA
 from utils import *
 import csv, os, sys, argparse, logging, time
+import shlex, subprocess
 
 # global variables
 gfs_output_path_hdfs = "gs://topic-zoomer/results/"
@@ -78,10 +79,15 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
     to_write.saveAsTextFile(output_folder)
 
     if gfs:
-        command = 'hdfs dfs -copyToLocal ' + output_folder + ' ' + output_folder
-        os.popen(command)
-        os.popen('gsutil cp -r ' + output_folder + ' ' + gfs_output_path_hdfs)
-
+        copyHdfsCmd = 'hdfs dfs -copyToLocal {} {}'.format(output_folder, output_folder)
+        copyBucketCmd = 'gsutil cp -r {} {}'.format(output_folder, gfs_output_path_hdfs)
+        copyHdfsRes = subprocess.call(shlex.split(copyHdfsCmd))
+        copyBucketRes = subprocess.call(shlex.split(copyBucketCmd))
+        # some exit code checks
+        if copyBucketRes or copyHdfsRes:
+            print('hdfsRes: {}'.format(copyHdfsRes))
+            print('bucketRes: {}'.format(copyBucketRes))
+            print('Something went wrong while copying results')
 
 if __name__ == '__main__':
     # NOTE: env variable SPARK_HOME has to be set in advance
