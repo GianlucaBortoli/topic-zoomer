@@ -41,11 +41,21 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
         docDF = docDFs[1]
         squareId = docDFs[0]
         StopWordsRemover.loadDefaultStopWords('english')
-        newDocDF = StopWordsRemover(inputCol="words", outputCol="filtered"). \
+        newDocDF_eng = StopWordsRemover(inputCol="words", outputCol="filtered_eng"). \
             transform(docDF)
-        model = CountVectorizer(inputCol="filtered", outputCol="vectors"). \
-            fit(newDocDF)
-        result = model.transform(newDocDF)
+        newDocDF_eng = newDocDF_eng.drop('words')
+        StopWordsRemover.loadDefaultStopWords('italian')
+        newDocDF_ita = StopWordsRemover(inputCol="filtered_eng", outputCol="filtered_ita"). \
+            transform(newDocDF_eng)
+        newDocDF_ita = newDocDF_ita.drop('filtered_eng')
+        StopWordsRemover.loadDefaultStopWords('german')
+        newDocDF_ger = StopWordsRemover(inputCol="filtered_ita", outputCol="filtered_ger"). \
+            transform(newDocDF_ita)
+        newDocDF_ger= newDocDF_ger.drop('filtered_ita')
+        print(newDocDF_ger.collect())
+        model = CountVectorizer(inputCol="filtered_ger", outputCol="vectors"). \
+            fit(newDocDF_ger)
+        result = model.transform(newDocDF_ger)
         corpus = result.select("idd", "vectors").rdd.map(create_corpus).cache()
         # cluster the documents into the k topics using LDA
         ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
