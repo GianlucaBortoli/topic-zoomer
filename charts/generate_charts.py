@@ -9,13 +9,13 @@ def backToTop(csvFile, reader):
 
 def computePoints(csvFile, reader):
     x = [] # the dataset ids (ie. portion wrt whole)
-    y = [] # timings
+    y = [] # timings (in mins)
     low = [] # min value for error
     top = [] # max value for error
     # find the dataset parts
     for row in reader:
         _id   = int(row[0])
-        _time = int(row[1])
+        _time = float(row[1])
         if _id not in x:
             x.append(_id)
     # compute avg for each dataset id
@@ -24,12 +24,12 @@ def computePoints(csvFile, reader):
         timings = []
         for row in reader:
             _id = int(row[0])
-            _time = int(row[1])
+            _time = float(row[1])
             if item == _id:
                 timings.append(_time)
         # put average for each id as y coordinate
         avg = sum(timings)/len(timings)
-        y.append(avg)
+        y.append(avg/60)
     # compute min & max error
     for item in x:
         backToTop(csvFile, reader)
@@ -37,7 +37,7 @@ def computePoints(csvFile, reader):
 
         for row in reader:
             _id = int(row[0])
-            _time = int(row[1])
+            _time = float(row[1])
             if item == _id:
                 if tmp_min is None or _time < tmp_min:
                     # update to new min
@@ -45,8 +45,8 @@ def computePoints(csvFile, reader):
                 if tmp_max is None or _time > tmp_max:
                     # update to new max
                     tmp_max = _time
-        low.append(tmp_min)
-        top.append(tmp_max)
+        low.append(tmp_min/60)
+        top.append(tmp_max/60)
     return x, y, low, top
 
 def main(inFile, outFileName):
@@ -76,7 +76,7 @@ def main(inFile, outFileName):
     plt.errorbar(x, y, yerr=[diffs_x, diffs_y], ecolor='red', elinewidth=1, fmt='o-')
     plt.xticks(x, x)
     plt.xlabel('% of the dataset')
-    plt.ylabel('Time (s)')
+    plt.ylabel('Time (min)')
     plt.savefig(outFileName + '.png')
     print("Done!")
 

@@ -22,3 +22,9 @@ python crawler.py --input 100_wikipedia_urls --output out.csv --min 0 --max 100
 cd /path/to/repo/src
 /path/to/spark-submit topic_zoomer.py 5 0 100 100 0 100 ../data/test.csv
 ```
+
+## Example to generate charts from timings
+```bash
+cd /path/to/repo/charts
+python generate_charts.py --input timings.csv --output out
+```
