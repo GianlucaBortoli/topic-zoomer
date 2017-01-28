@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import matplotlib.pyplot as plt
 import argparse, sys, os, csv
+import math
 
 def backToTop(csvFile, reader):
     csvFile.seek(0)
@@ -29,7 +30,7 @@ def computePoints(csvFile, reader):
                 timings.append(_time)
         # put average for each id as y coordinate
         avg = sum(timings)/len(timings)
-        y.append(avg/60)
+        y.append(math.log(avg/60))
     # compute min & max error
     for item in x:
         backToTop(csvFile, reader)
@@ -45,8 +46,8 @@ def computePoints(csvFile, reader):
                 if tmp_max is None or _time > tmp_max:
                     # update to new max
                     tmp_max = _time
-        low.append(tmp_min/60)
-        top.append(tmp_max/60)
+        low.append(math.log(tmp_min/60))
+        top.append(math.log(tmp_max/60))
     return x, y, low, top
 
 def main(inFile, outFileName):
