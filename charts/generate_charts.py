@@ -76,8 +76,11 @@ def main(inFile, outFileName):
     # create figure & save it
     plt.errorbar(x, y, yerr=[diffs_x, diffs_y], ecolor='red', elinewidth=1, fmt='o-')
     plt.xticks(x, x)
-    plt.xlabel('% of the dataset')
+    #plt.xlabel('% of the dataset')
+    plt.xlabel('Step')
     plt.ylabel('Time (min)')
+    #axes = plt.gca()
+    #axes.set_xlim([3, 26])
     plt.savefig(outFileName + '.png')
     print("Done!")
 
