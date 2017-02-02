@@ -2,6 +2,9 @@
 \usepackage{subscript}
 \usepackage{tikz}
 \usepackage{hyperref}
+\usepackage{graphicx}
+
+\graphicspath{ {./imgs/} }
 
 \begin{document}
 
@@ -28,7 +31,6 @@ Smartphones and tablets pervade our lives on a daily basis and people use them i
 The key idea behind this work is to take advantage of the traffic they generate while they are connected to the Internet, extracting \emph{topics} from what people search on the web with their mobile devices. This use case provides also the geographical coordinates of the users based on the telephone cell they are connected to.\\
 For the purpose of this work the approximate location of the cell is enough, even thoug it implicitly defines a limit on the precision while selecting an area inside a map.\\
 This paper presents Topic-zoomer, a URL categorization system built upon Apache Spark\footnote{\url{http://spark.apache.org/}}.
-%\cite{*} % little hack
 \end{abstract}
 
 
@@ -78,40 +80,87 @@ The first task was to transform an initial dataset with the form shown in \ref{d
 A \emph{crawler} has been written in order to follow all the links and download the web pages.\\
 This may seem a trivial operation at a first glance. However the initial dataset contained a lot of URLs pointing to images, videos, applications' configuration files and many other elements that are far from being a web page. To retrieve only sensible information the crawler rejects all the requests not containing \emph{text/html} in the responses' header. This is the one usually populated by the web server when one of its pages is downloaded. In this way a new CSV file containing rows as described in \ref{datasetClean} is generated.
 \subsection{Topic extraction}
-After downloading the web pages, the Spark pipeline is ready to run on the clean dataset.
+After downloading the web pages, the Spark pipeline is ready to run on the clean dataset.\\
+Among all the ways to extract topic, the \emph{Latent Dirichlet allocation}\cite{lda} (LDA) algorithm is used. LDA is a generative and probabilistic model for collections of discrite data such as text corpora. It is a Bayesian hierarchical model, where each topic is modeled over an underlying set of topic probabilities. LDA is a good candidate when choosing between different methods to classify text. This work uses the implementation found in the Spark MLlib\footnote{\url{https://spark.apache.org/docs/latest/mllib-guide.html}} for the inference step. From a higher perspective, LDA can be seen as a clustering technique, whose goal is to divide the document corpora into \emph{k} clusters (i.e. the \emph{k} topics of interest).
+\subsection{Spark pipeline}
 %TODO: describe the pipeline of map|reduce into the `compute` function
 \subsection{Avoiding recomputation}
 %TODO: describe here the idea about how to avoid recomputing everithing from scratch
 
 
 \section{Architecture}
-Apache Spark and all the other big data distributed frameworks are thought to be set up in a cluster of machines. In this way it is possible to exploit its distributed mode and all the computation power from the worker nodes.\\
-To achive this Google Dataproc\footnote{\url{https://cloud.google.com/dataproc/}} on the Google Compute Engine\footnote{\url{https://cloud.google.com/compute/}} (GCE) is used to provision and setup a Spark cluster.\\
+Apache Spark and all the other big data distributed frameworks are thought to be set up in a cluster of machines. In this way it is possible to exploit its distributed mode and all the computation power from the worker nodes. To achive this Google Dataproc\footnote{\url{https://cloud.google.com/dataproc/}} on the Google Compute Engine\footnote{\url{https://cloud.google.com/compute/}} (GCE) is used to provision and setup a Spark cluster.\\
+
 One of the main focuses of this work is the \emph{scalability} of this piece of software. To see if Topic-zoomer really succeedes in it, a pseudo-distributed Spark cluster may produce completely misleading or even wrong results. Thus a platform providing highly performing vistual machines (VMs) was mandatory.\\
 The cluster used for the experiments described in Section \ref{experiments} is composed as shown in Table \ref{cluster}.
+
 \begin{table}[]
-\centering
-\caption{GCE cluster node description}
-\label{cluster}
-\begin{tabular}{lllll}
-\hline
-Node   & Number & vCPUs & RAM (GB) & SSD (GB) \\
-\hline
-master & 1      & 1     & 3.75     & 500      \\
-worker & 3      & 2     & 7.50     & 500     
-\end{tabular}
+    \centering
+    \caption{GCE cluster node characteristics.}
+    \label{cluster}
+    \begin{tabular}{lllll}
+    \hline
+    Node   & Number & vCPUs & RAM (GB) & SSD (GB) \\
+    \hline
+    master & 1      & 1     & 3.75     & 500      \\
+    worker & 3      & 2     & 7.50     & 500     
+    \end{tabular}
 \end{table}
 
 
 \section{Experiments}\label{experiments}
-%TODO: put here images & descriptions
-% remember that time is log scale!
-% parameters used for all the experiments (in a table maybe?) 
-% table to show the different parts of the dataset with their size in terms of MB and # of lines
+% TODO: include also the experiment about recomputation
+Some performance measuser are computed in order to see how Topic-zoomer behaves under different scenarios.\\
+
+Table \ref{datasets} displays the composition and the sizes of the input data used fot these experiments. As it is possible to see, the whole dataset (i.e. \emph{input\_100}) is split into different input files with increasing size in order to be able to run the experiments with different volumes of data.
+
+\begin{table}[]
+    \centering
+    \caption{Input data description.}
+    \label{datasets}
+    \begin{tabular}{llll}
+    \hline
+    ID         & \% of whole dataset & \# of lines & Size (MB) \\
+    \hline
+    input\_15  & 15                  & 52623       & 11        \\
+    input\_30  & 30                  & 105246      & 21        \\
+    input\_45  & 45                  & 157872      & 30        \\
+    input\_60  & 60                  & 210495      & 40        \\
+    input\_75  & 75                  & 263118      & 54        \\
+    input\_90  & 90                  & 315741      & 63        \\
+    input\_100 & 100                 & 350826      & 69       
+    \end{tabular}
+\end{table}
+
+Four different test procedures are followed in order to highlight how the tool behaves from different point of views.\\
+All the charts presented in this section are generated after repeating every run 4 times. This number of repetitions is selected as a tradeoff between the time taken to run all the tests and a way to obtain statistically significant timings.The average among them is computed and shown in the graph as the value for that point, while the red vertical bars show the difference between the best and worst performing run.\\
+
+The former graph (Figure \ref{scalability}) shows how Topic-zoomer scales with respect to the dataset size. The time in the \emph{y} axis is shown in \emph{log scale}, while the \emph{x} axis represents the percentage of the whole dataset used. It is clear how the time taken by the tool to compute the topics is not exponential in the size of the input data. Thus it is possible to state that Topic-zoomer scales properly and in a linear manner.  
+Another important aspect while processing a large amount of data is to show the worst and the best case scenarios for the algorithm. The LDA algorithm is faster when deals with few points located inside the region selected by the user, because the underlying model to be trained is smaller.\\
+Figure \ref{square} depicts how performances degrade increasing the size of the region selected. The time in the ordinate axis is always in log scale to allow a more direct interpretation of the chart. Moreover, in this experiment the grid size (i.e. the \emph{step}) is set to be equal to te one of the selected area \emph{A}. It is not surprising that the time trend in Figure \ref {square} is nearly the same as the one in Figure \ref{scalability}. This means that selecting bigger areas via the top-left and bottom-right corners is the equivalent of having a bigger input dataset.\\  
+Finally Figure \ref{step} shows the performance keeping the selected region unchanged, while the \emph{S} parameter describing the inner grid increases. For this experiment, the selected top-left and bottom-right corners formed a square whose side size is 5. The graph shows a huge increase increasing the grid size from 2 to 3 and from 3 to 4. Moreover, when the step \emph{S} is set to the size of the whole area \emph{A} the time taken to complete the topic extraction seems to decrease. This corroborates the idea that the selection of the \emph{S} parameter highly influences the computation time and that the worst case for the algorithm is when the grid size is set to the one of the side of \emph{A}.
+
+\begin{figure}[t]
+  \center{\includegraphics[width=0.5\textwidth]{scalability.png}}
+  \caption{Scalability with different input size.}
+  \label{scalability}
+\end{figure}
+\begin{figure}[t]
+  \center{\includegraphics[width=0.5\textwidth]{increasing_square_size.png}}
+  \caption{Performance with different area selections.}
+  \label{square}
+\end{figure}
+\begin{figure}[t]
+  \center{\includegraphics[width=0.5\textwidth]{increasing_step.png}}
+  \caption{Performance with different grid size.}
+  \label{step}
+\end{figure}
 
 
 \section{Conclusions and future work}
-As described in Section \ref{experiments} quite good results are achieved from the scalability point of view. Even though the whole dataset size is not in the order gigabytes, the results are quite promising.
+As described in Section \ref{experiments} quite good results are achieved from the scalability point of view. Even though the whole dataset size is not in the order gigabytes, the results are quite promising.\\
+Further developments of this work may involve the creation of a graphical user interface (GUI), allowing the users to select the \emph{A} area and all the other parameters in a more convenient way. This can be done implementing a web UI showing a map of the territory we own data about (eg. Google Maps or OpenStreetMap) communicating with the Spark cluster backend. Once succeeded the results can be retrieved and shown to the user either as a table or as a chart.\\
+Furthermore some attention should be put to the visualization of the raw results of the Spark jobs. A neat and well organized presentation can improve not only immediate interpretation of the results, but also the usability of the tool for the general public.
 
 
 %\end{document}  % This is where a 'short' article might terminate
@@ -120,8 +169,8 @@ As described in Section \ref{experiments} quite good results are achieved from t
 % initial runs of your .tex file to
 % produce the bibliography for the citations in your paper.
 
-%\bibliographystyle{abbrv}
-%\bibliography{biblio}% sigproc.bib is the name of the Bibliography in this case
+\bibliographystyle{abbrv}
+\bibliography{biblio}% biblio.bib is the name of the Bibliography in this case
 
 % You must have a proper ".bib" file
 %  and remember to run:
