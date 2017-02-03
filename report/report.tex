@@ -43,53 +43,53 @@ This paper presents Topic-zoomer, a URL categorization system built upon Apache 
 Extracting topics from a text is a very common goal nowadays in Big Data and the problem of categorizing URLs is highly connected to it.\\
 Generally speacking, the main aim is to find what a set of texts is talking about. Applying this reasoning to a more specific problem, Topic-zoomer is able to find the topics on a subset of the initial dataset, based on the documents' geographical location.\\
 The tool starts from a set of geotagged URLs and is able to restrict its search space only to the web pages lying inside a certain geographical region. In this way it can discover what the pages in that spacific area are talking about.\\
-More informally, this work can be employed in many different fields. For example it can be used to see what people are going to do in the future based on their web searches. Moreover it can be useful for public institutions such as municipalities: they could understand the citizens' needs in order to improve the functionality of the city's facilities and their territory coverage.\\
-However, the main problem of a real-life usage of this kind of analysis can be the source of the data. ISPs can easily extract and provide geotagged URLs based on the HTTP requests passing through their routers. Furthermore the anonimity of the users generating such traffic must be preserved.\\
-This kind of problems is a challange for traditional programming paradigms, since the amount of data can be huge and may also involve straming  processing. Big Data platforms and frameworks perfectly suit this amount of work that cannot fit in a single machine and has to scale as the input size increases. Thus employing an engine for large-scale and distributed data processing is certainly not an option if the tool is thought to be used on real data.        
+This work can be employed in many different fields. For example it can be utilized to see what people are going to do in the future based on their web searches. Moreover it can be useful for public institutions such as municipalities: they could understand the citizens' needs in order to improve the functionality of the city's facilities and their territory coverage.\\
+However, the main problem of a real-life usage of this kind of analysis can be the data source. Internet Service Providers (ISPs) can easily extract and provide geotagged URLs based on the HTTP requests passing through their routers. Furthermore the anonimity of the users generating such traffic must be preserved.\\
+This kind of problems is a challange for traditional programming paradigms, since the amount of data can be huge and may also involve straming  processing. Big Data platforms and frameworks perfectly suit this amount of work that cannot fit in a single machine and has to scale as the input size increases. Thus employing an engine for large-scale and distributed data processing is certainly not an option if a system is thought to be used on real data.        
 
 
 \section{Related work}
-URL categorization is a task that many people and companies are addressing in the last few years. Some of them are even trying to categorize the whole web. Some of the ones involved in this kind of analysis are Cyren\footnote{\url{http://www.cyren.com/url-category-check.html}} and BrightCloud\footnote{\url{https://www.brightcloud.com/tools/change-request-url-categorization.php}}. Moreover, a huge number academic researches have been published and also some patents\footnote{\url{https://www.google.com/patents/US8078625}} have been filed on the subject.\\
+URL categorization is a task that many people and companies are addressing in the last few years, pushing even to the categorization of the whole World Wild Web. Some of the ones involved in this kind of analysis are Cyren\footnote{\url{http://www.cyren.com/url-category-check.html}} and BrightCloud\footnote{\url{https://www.brightcloud.com/tools/change-request-url-categorization.php}}. Moreover, a huge number academic researches have been published and also some patents\footnote{\url{https://www.google.com/patents/US8078625}} have been filed on the subject.\\
 However the specific case of geotagged URLs has not raised so much interest neither in the academic nor in the developer communities.
 
 
 \section{Problem definition}
-The task Topic-zoomer aims to solve can be better described showing what the \emph{input} and the \emph{output} are.\\
-The \emph{input} is CSV file containing rows of the following form:
+The task Topic-zoomer aims to solve can be better described starting from its \emph{input} and \emph{output} data.\\
+The \emph{input} is a CSV file containing rows of the following form:
 \begin{equation}\label{dataset}
     <latitude,\,longitude,\,\{url0\,|url1\,|...\,\}\,>
 \end{equation}
-The text of the pages pointed by the URLs is analized in order to identify the topics, that can be represented as a vector of words that very often appear togheter.\\
-Let \emph{A} be an algorithm to compute such topics (eg. TF/IDF, frequent itemset or LDA), the algorithm \emph{L} gives as a result the topics of the dataset in general.\\
-\emph{L} allows the user to restrict the search in the dataset using the following parameters:
+The text of the pages pointed by the URLs is analized in order to identify the topics that represented as a vector of words that very often appear togheter.\\
+Let \emph{A} be an algorithm to compute such topics (eg. TF/IDF, frequent itemset or LDA; see Section \ref{algorithmSelection} for a more comprehensive description), the algorithm \emph{L} gives as a result the topics of the dataset in general.\\
+\emph{L} also allows the user to restrict the search in the dataset using the following parameters:
 \begin{itemize}
     \item \emph{A}: the map area identified by top-left and bottom-right corners. This is the region of interest for retrieving the topics. 
-    \item \emph{S}: the size of the grid to be created inside the area \emph{A} selected above (ie. the square side length).
+    \item \emph{S}: the size of the grid to be created inside the area \emph{A} (ie. the square side length).
     \item \emph{k}: the number of topics to search inside each square of the grid.
 \end{itemize}
-In this way \emph{A} is divided into squares of size $S*S$ and the \emph{k} topics are identified inside each such square in the grid.
+In this way \emph{A} is divided into squares of size $S \times S$ and the \emph{k} topics are identified inside each such square.
 
 
 \section{Solution}
-This section describes in detail all the steps to realize this tool, from the initial web page download to the map-reduce operations taken by Spark. The order in which they are presented reflects the one followed during the experiments.
+This section describes in detail all the steps needed to realize this tool, from the initial web page download to the map-reduce operations taken by Spark. The order in which they are presented reflects the one followed during the experiments.
 \subsection{Data collection and preprocessing}\label{preprocessing}
 The first task was to transform an initial dataset with the form shown in \ref{dataset} into another one of the form
 \begin{equation}\label{datasetClean}
     <latitude,\,longitude,\,page\_text\,>
 \end{equation}
-A \emph{crawler} has been written in order to follow all the links and download the web pages. This may seem a trivial operation at a first glance. However the initial dataset contained a lot of URLs pointing to images, videos, configuration files for mobile phones applications and many other elements that are far from being a web page. To retrieve only sensible information, the crawler rejects all the requests not containing \emph{text/html} in the responses' header. This is the one which is usually populated by a web server when a client visits one of its pages. Last but not least, the crawler uses multiple processe to minimize the download time. Multiple processes are preferred to multiple threads because the crawler is written in Python and this language is known to be subject to the Global Interpreter Lock\cite{gil} (GIL).\\
+A \emph{crawler} has been written in order to follow all the links and download the web pages. This may seem a trivial operation at a first glance. However the initial dataset contained a lot of URLs pointing to images, videos, configuration files for mobile phones applications and many other elements that are far from being a text web page. To retrieve only sensible information, the crawler rejects all the requests not containing \emph{text/html} in the responses' headers. This is the one which is usually populated by a web server when a client visits one of its pages. Last but not least, the crawler uses multiple processe to minimize the download time. Multiple processes are preferred to multiple threads because the crawler is written in Python and this language is known to be subject to the Global Interpreter Lock\cite{gil} (GIL).\\
 Finally a new CSV file containing rows as described in \ref{datasetClean} is generated.
-\subsection{Algorithm selection}
+\subsection{Algorithm selection}\label{algorithmSelection}
 After downloading the web pages, the Spark pipeline is ready to run on the clean dataset.\\
 Among all the ways to extract topic, the \emph{Latent Dirichlet Allocation}\cite{lda} (LDA) algorithm is chosen as \emph{L} to find the topics of the dataset in general. LDA is a generative and probabilistic model for collections of discrite data such as text corpora. It is a Bayesian hierarchical model, where each topic is modeled over an underlying set of topic probabilities. LDA is a good candidate when choosing between different methods to classify text. This work uses the implementation inside the Spark MLlib for the inference step.\\
-From a higher perspective, LDA can be seen as a clustering technique, whose goal is to divide the document corpora given as input into \emph{k} clusters, which are the topics to be retrieved from the text.
+From a higher perspective LDA can be seen as a clustering technique, whose goal is to divide the document corpora given as input into \emph{k} clusters, which are the topics to be retrieved from the text.
 \subsection{Spark pipeline}
 Spark is a framework that allows to write parallel applications in many languages using the map-reduce paradigm. Python\footnote{For the seek of completeness, Python3 with version \textless\,3.6 is used.} is chosen for the development of this work in order to focus on the real data manipulation and analysis rather than continuously dealing with language-specific issues. Moreover, the Python interface for Spark is very concise and makes the application maintainable in long-term projects.\\
 The pipeline of operations is composed as follows:
 \begin{itemize}
     \item provide Topic-zoomer with the parameters \emph{A}, \emph{S} and \emph{k}.
     \item read the dataset (in CSV format) generated by the pre-processing phase described in Section \ref{preprocessing}.
-    \item divide \emph{A} into squares with dimension $S*S$ (ie. compute the inner grid).
+    \item divide \emph{A} into squares with dimension $S \times S$ (ie. compute the inner grid).
     \item filter the input data to retrieve only the points lying inside each square of the grid. At the same time a dataframe for each one of them is created.\\
     Next take the following steps for each square:
     \begin{itemize}
@@ -99,7 +99,7 @@ The pipeline of operations is composed as follows:
         \item collect the results from HDFS.
     \end{itemize}
 \end{itemize}
-The choice of creating one dataframe for each $S*S$ square in the grid allows to fully exploit the parallelism offered by Spark. In this way the master node always has data to send to the workers to keep them busy until the end of the computation. This approach should optimize the CPU usage in the worker nodes, taking advantage of the full computation power made available by the cluster.
+The choice of creating one dataframe for each $S \times S$ square in the grid allows to fully exploit the parallelism offered by Spark. In this way the master node always has data to send to the workers to keep them busy until the end of the computation. This approach should optimize the CPU usage in the worker nodes, taking advantage of the full computation power made available by the cluster.
 \subsection{Avoiding recomputation}
 One of the main issues these kind of tools has to face is the overall time to answer a user query.\\
 The main idea bihind this feature can be better explained referring to Figure \ref{recomputation}. The top-left square represents an area (\emph{oldA}) the tool already computed the topics for in a previous run, while the bottom-right one a new area (\emph{newA}) of interest. It would be useful not to recompute the topics for the whole \emph{newA}, since \emph{oldA} and \emph{newA} have a part in common (ie. \emph{commonA}, the blue square). This can be achieved trining the LDA model only on the white area without including the \emph{commonA} part, as it would happen without this feature. As the blue region becomes bigger, the whole run of the tool will take less time with respect to a naive implementation. This improvement is due to the fact that \emph{newA} contains less points and thus the underlying LDA model will be trained with fewer items.\\
@@ -196,7 +196,7 @@ Finally, Figure \ref{step} shows the performance keeping the selected region unc
 As described in Section \ref{experiments} quite good results are achieved from the scalability point of view. Even though the whole dataset size is not in the order gigabytes, the results are quite promising.\\
 Further developments of this work may involve the creation of a graphical user interface (GUI), allowing the users to select the \emph{A} area and all the other parameters in a more convenient way. This can be done implementing a web UI showing a map of the territory we own data about (eg. Google Maps or OpenStreetMap) communicating with the Spark cluster backend. Once succeeded the results can be retrieved and shown to the user either as a table or as a chart.\\
 Moreover some attention should be put to the visualization of the raw results of the Spark jobs. A neat and well organized presentation can improve not only immediate interpretation of the results, but also the usability of the tool for the general public.\\
-Finally there is room for improvement in the part avoiding useless recomputation. For example it could be implemented using the map-reduce paradigm, furtherly incrementing the performance from the scalability standpoint. 
+Finally there is room for improvement in the part avoiding useless recomputation. For example it could be implemented using the map-reduce paradigm to further increment the performance from the scalability standpoint. 
 
 
 %\end{document}  % This is where a 'short' article might terminate
