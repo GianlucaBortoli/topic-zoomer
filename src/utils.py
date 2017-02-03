@@ -12,6 +12,10 @@ reg_compiled = re.compile(reg)
 gfs_output_path_hdfs = "gs://topic-zoomer/results/"
 
 
+def check_step(topLeft, bottomRight, step):
+    return min(step, topLeft.y-bottomRight.y, bottomRight.x - topLeft.x)
+
+
 def get_computed_squares():
     result = []
     recFileFolder = "/tmp/Topic_Zoomer_recomputation"

@@ -10,19 +10,20 @@ import csv, argparse, time
 import shlex, subprocess
 
 
-def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs, recomputation):
+def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
     data = data.mapPartitions(lambda x: csv.reader(x))
     header = data.first()
     data = data.filter(lambda x: x != header)
     result_to_write = []
+    res_computation = []
+    step = check_step(topLeft, bottomRight, step)
     squares = get_squares(topLeft, bottomRight, step)
     # start computing elapsed time here
     start_time = time.time()
     data = data.map(lambda x: is_inside(x, topLeft, bottomRight, step, squares)). \
         filter(lambda x: x is not None)
-
     data = data.map(remove_punctuation). \
         map(split_string_into_array). \
         filter(remove_empty_array). \
@@ -71,8 +72,10 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs, recomputation):
                     topics_label.append(topic_term)
                     break
         # print topics
-        s = ";"
-        result_to_write.append([squareId, s.join(topics_label)])
+        s = "; "
+        res = "{}, {}, {}, {}, {}".format(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y, s.join(topics_label))
+        result_to_write.append(res)
+        res_computation.append(topics_label)
     end_time = time.time()
     elapsed_time = end_time - start_time
     result_to_write.append(elapsed_time)
@@ -85,18 +88,20 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs, recomputation):
         output_folder = "Topic_Zoomer_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + '_' + size
 
     to_write.saveAsTextFile(output_folder)
-
     if gfs:
         copyHdfsCmd = 'hdfs dfs -copyToLocal {} {}'.format(output_folder, output_folder)
         copyBucketCmd = 'gsutil cp -r {} {}'.format(output_folder, gfs_output_path_hdfs)
+        copyRecBucketCmd = 'gsutil cp -r {} {}'.format(recFileFolder, gfs_output_path_hdfs)
         copyHdfsRes = subprocess.call(shlex.split(copyHdfsCmd))
         copyBucketRes = subprocess.call(shlex.split(copyBucketCmd))
+        copyRecBucketRes = subprocess.call(shlex.split(copyRecBucketCmd))
         # some exit code checks
-        if copyBucketRes or copyHdfsRes:
+        if copyBucketRes or copyHdfsRes or copyRecBucketRes:
             print('hdfsRes: {}'.format(copyHdfsRes))
-            print('bucketRes: {}'.format(copyBucketRes))
+            print('bucketResComp: {}'.format(copyBucketRes))
+            print('bucketResRec: {}'.format(copyRecBucketRes))
             print('Something went wrong while copying results')
-
+    return res_computation
 if __name__ == '__main__':
     # NOTE: env variable SPARK_HOME has to be set in advance
     # The check on the number of parameters is done automatically
@@ -126,18 +131,47 @@ if __name__ == '__main__':
     sc = SparkContext(appName="topic_zoomer", pyFiles=["./utils.py"])
     start_isEqual_time = time.time()
     computedSquares = []
+    results = []
     if recomputation:
         computedSquares = get_computed_squares()
 
     if len(computedSquares) != 0:
         # use recomputation
         if not is_equal(topLeft, bottomRight, computedSquares[0]):
+            print("not equal")
             for diff in get_diff_squares(topLeft, bottomRight, computedSquares):
-                compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs, recomputation)
+                results.append(compute(sc, diff[0], diff[1], args.step, args.dataset, args.k, gfs))
         else:
             end_isEqual_time = time.time()
-            print(end_isEqual_time - start_isEqual_time)
+            print("Time elapsed:", end_isEqual_time - start_isEqual_time)
             print("equal")
     else:
         # do not use recomputation
-        compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs, recomputation)
+        results.append(compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs))
+    # if recomputation is not enabled do cleanup
+    if not recomputation:
+        recFileFolder = "/tmp/Topic_Zoomer_recomputation"
+        rmFolderHdfsCmd = 'hdfs dfs -rm -r -f {}'.format(recFileFolder)
+        rmFolderHdfsRes = subprocess.call(shlex.split(rmFolderHdfsCmd))
+        res = "{}, {}, {}, {}, ".format(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y)
+        # properly format output
+        tmp = []
+        for r in results:
+            for r1 in r:
+                tmp.extend(r1)
+        s = "; "
+        res += s.join(tmp)
+        final_result = [res]
+        to_write = sc.parallelize(final_result)
+        to_write.saveAsTextFile(recFileFolder)
+        # cleanup if needed
+        if rmFolderHdfsRes:
+            print('rmFolder: {}'.format(rmFolderHdfsRes))
+            print('Something went wrong while copying results')
+        if gfs:
+            copyRecBucketCmd = 'gsutil cp -r {} {}'.format(recFileFolder, gfs_output_path_hdfs)
+            copyRecBucketRes = subprocess.call(shlex.split(copyRecBucketCmd))
+            # some exit code checks
+            if copyRecBucketRes:
+                print('bucketResRec: {}'.format(copyRecBucketRes))
+                print('Something went wrong while copying results')
