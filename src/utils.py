@@ -2,12 +2,39 @@
 from pyspark.mllib.linalg import DenseVector
 from pyspark.sql import Row
 from collections import namedtuple
-import re
+import re, csv, os, shlex
+import subprocess, shutil
 
 # global vars
 Point = namedtuple('Point', ['x', 'y'])
 reg = r"[^a-zA-Z| 0-9 | \']"
 reg_compiled = re.compile(reg)
+gfs_output_path_hdfs = "gs://topic-zoomer/results/"
+
+
+def get_computed_squares():
+    result = []
+    recFileFolder = "/tmp/Topic_Zoomer_recomputation"
+    recFileName = "/tmp/Topic_Zoomer_recomputation/recomputation.txt"
+    shutil.rmtree(recFileFolder, ignore_errors=True)
+    if os.path.isfile(recFileName):
+        os.remove(recFileName)
+    copyRecFileCmd = 'hdfs dfs -copyToLocal {} /tmp'.format(recFileFolder)
+    copyRecFileRes = subprocess.call(shlex.split(copyRecFileCmd))
+    mergeFileCmd = 'cat {}/* > {}'.format(recFileFolder, recFileName)
+    mergeFileRes = subprocess.call(mergeFileCmd, shell=True)
+    if copyRecFileRes or mergeFileRes:
+        print('CopyRes: {}'.format(copyRecFileRes))
+        print('MergeRes: {}'.format(mergeFileRes))
+        print('Something went wrong while copying results')
+        return result
+    with open(recFileName, "r") as res:
+        csvRes = csv.reader(res)
+        for row in csvRes:
+            tl = Point(x=float(row[0]), y=float(row[1]))
+            br = Point(x=float(row[2]), y=float(row[3]))
+            result.append([tl, br])
+    return result
 
 
 def get_square_points(tl,br):
@@ -15,9 +42,11 @@ def get_square_points(tl,br):
     tr = Point(br.x, tl.y)
     return [tl, tr, bl, br]
 
+
 def is_equal(inputTl, inputBr, computedSquares):
     return inputTl.x == computedSquares[0].x and inputTl.y == computedSquares[0].y and \
         inputBr.x == computedSquares[1].x and inputBr.y == computedSquares[1].y
+
 
 def get_diff_squares(inputTl, inputBr, computedSquares):
     oldSquares = []
