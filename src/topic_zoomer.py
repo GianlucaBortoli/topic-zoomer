@@ -6,14 +6,11 @@ from pyspark.ml.feature import CountVectorizer
 from pyspark.ml.feature import StopWordsRemover
 from pyspark.mllib.clustering import LDA
 from utils import *
-import csv, os, sys, argparse, logging, time
+import csv, argparse, time
 import shlex, subprocess
 
-# global variables
-gfs_output_path_hdfs = "gs://topic-zoomer/results/"
 
-
-def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
+def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs, recomputation):
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
     data = data.mapPartitions(lambda x: csv.reader(x))
@@ -21,8 +18,6 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
     data = data.filter(lambda x: x != header)
     result_to_write = []
     squares = get_squares(topLeft, bottomRight, step)
-    print(squares)
-    return
     # start computing elapsed time here
     start_time = time.time()
     data = data.map(lambda x: is_inside(x, topLeft, bottomRight, step, squares)). \
@@ -76,7 +71,8 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
                     topics_label.append(topic_term)
                     break
         # print topics
-        result_to_write.append((squareId, topics_label))
+        s = ";"
+        result_to_write.append([squareId, s.join(topics_label)])
     end_time = time.time()
     elapsed_time = end_time - start_time
     result_to_write.append(elapsed_time)
@@ -118,20 +114,30 @@ if __name__ == '__main__':
     parser.add_argument('recomputation', type=int, help='flag to activate recomputation')
     args = parser.parse_args()
     # create area delimeter points
-
     topLeft = Point(args.tlx, args.tly)
     bottomRight = Point(args.brx, args.bry)
+    recomputation = args.recomputation
     print("Top left = ({},{})".format(topLeft.x, topLeft.y))
     print("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
     print("Step = {}".format(args.step))
     if args.dataset[:3] == "gs:":
         gfs = True
-    sc = SparkContext(appName="topic_zoomer", pyFiles=["./utils.py"])
 
-    tmp = [[Point(x=3, y=6), Point(x=6, y=3)]]
-    if not is_equal(topLeft, bottomRight, tmp[0]):
-        for diff in get_diff_squares(topLeft, bottomRight, tmp):
-            print(diff)
-        #    compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs)
+    sc = SparkContext(appName="topic_zoomer", pyFiles=["./utils.py"])
+    start_isEqual_time = time.time()
+    computedSquares = []
+    if recomputation:
+        computedSquares = get_computed_squares()
+
+    if len(computedSquares) != 0:
+        # use recomputation
+        if not is_equal(topLeft, bottomRight, computedSquares[0]):
+            for diff in get_diff_squares(topLeft, bottomRight, computedSquares):
+                compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs, recomputation)
+        else:
+            end_isEqual_time = time.time()
+            print(end_isEqual_time - start_isEqual_time)
+            print("equal")
     else:
-        print("equal")
+        # do not use recomputation
+        compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs, recomputation)
