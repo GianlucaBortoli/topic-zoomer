@@ -5,8 +5,92 @@ from collections import namedtuple
 import re
 
 # global vars
+Point = namedtuple('Point', ['x', 'y'])
 reg = r"[^a-zA-Z| 0-9 | \']"
 reg_compiled = re.compile(reg)
+
+
+def get_square_points(tl,br):
+    bl = Point(tl.x, br.y)
+    tr = Point(br.x, tl.y)
+    return [tl, tr, bl, br]
+
+def is_equal(inputTl, inputBr, computedSquares):
+    return inputTl.x == computedSquares[0].x and inputTl.y == computedSquares[0].y and \
+        inputBr.x == computedSquares[1].x and inputBr.y == computedSquares[1].y
+
+def get_diff_squares(inputTl, inputBr, computedSquares):
+    oldSquares = []
+    output = []
+    inputSquare = get_square_points(inputTl, inputBr)
+    common = get_common_squares(inputTl, inputBr, computedSquares)
+
+    for s in computedSquares:
+        oldSquares.append(get_square_points(s[0], s[1]))
+    for oldS in oldSquares:
+        oldSTlBr = [oldS[0], oldS[3]]
+        for c in common:
+            if point_inside_square(inputBr.x, inputBr.y, oldSTlBr):
+                tlOut1 = inputTl
+                brOut1 = Point(inputBr.x, c[0].y)
+                tlOut2 = Point(inputTl.x, c[0].y)
+                brOut2 = Point(c[0].x, inputBr.y)
+                output.append([tlOut1, brOut1])
+                output.append([tlOut2, brOut2])
+            elif point_inside_square(inputTl.x, inputTl.y, oldSTlBr):
+                tlOut1 = Point(c[1].x, c[0].y)
+                brOut1 = Point(inputBr.x, c[1].y)
+                tlOut2 = Point(inputTl.x, c[1].y)
+                brOut2 = inputBr
+                output.append([tlOut1, brOut1])
+                output.append([tlOut2, brOut2])
+            elif point_inside_square(inputSquare[2].x, inputSquare[2].y, oldSTlBr):
+                tlOut1 = inputTl
+                brOut1 = Point(inputBr.x, c[0].y)
+                tlOut2 = Point(c[1].x, c[0].y)
+                brOut2 = inputBr
+                output.append([tlOut1, brOut1])
+                output.append([tlOut2, brOut2])
+            elif point_inside_square(inputSquare[1].x, inputSquare[1].y, oldSTlBr):
+                tlOut1 = inputTl
+                brOut1 = Point(c[0].c, c[1].y)
+                tlOut2 = Point(inputTl.x, c[1].y)
+                brOut2 = inputBr
+                output.append([tlOut1, brOut1])
+                output.append([tlOut2, brOut2])
+            else:
+                print("Something gone wrong in diff")
+        return output
+
+
+def get_common_squares(inputTl, inputBr, computedSquares):
+    output = []
+    oldSquares = []
+    inputSquare = get_square_points(inputTl, inputBr)
+    for s in computedSquares:
+        oldSquares.append(get_square_points(s[0], s[1]))
+
+    for oldS in oldSquares:
+        oldSTlBr = [oldS[0], oldS[3]]
+        if point_inside_square(inputBr.x, inputBr.y, oldSTlBr):
+            tlOut = oldS[0]
+            brOut = inputBr
+            output.append([tlOut, brOut])
+        elif point_inside_square(inputTl.x, inputTl.y, oldSTlBr):
+            tlOut = inputTl
+            brOut = oldS[3]
+            output.append([tlOut, brOut])
+        elif point_inside_square(inputSquare[2].x, inputSquare[2].y, oldSTlBr):
+            tlOut = Point(inputTl.x, oldS[0].y)
+            brOut = Point(oldS[3].x, inputBr.y)
+            output.append([tlOut, brOut])
+        elif point_inside_square(inputSquare[1].x, inputSquare[1].y, oldSTlBr):
+            tlOut = Point(oldS[0].x, inputTl.y)
+            brOut = Point(inputBr.x, oldS[3].y)
+            output.append([tlOut, brOut])
+        else:
+            print("Something gone wrong in common")
+    return output
 
 
 def topic_render(x, word_numbers, vocab_array):  
