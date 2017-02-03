@@ -3,6 +3,7 @@
 \usepackage{tikz}
 \usepackage{hyperref}
 \usepackage{graphicx}
+\usepackage{amsmath}
 
 \graphicspath{ {./imgs/} }
 
@@ -70,7 +71,7 @@ In this way \emph{A} is divided into squares of size $S*S$ and the \emph{k} topi
 
 
 \section{Solution}
-This section describes in detail all the steps to realize this tool, from the initial web page download to the map-reduce operations taken by Spark. The presentation order reflects the one followed during the experiments.
+This section describes in detail all the steps to realize this tool, from the initial web page download to the map-reduce operations taken by Spark. The order in which they are presented reflects the one followed during the experiments.
 \subsection{Data collection and preprocessing}\label{preprocessing}
 The first task was to transform an initial dataset with the form shown in \ref{dataset} into another one of the form
 \begin{equation}\label{datasetClean}
@@ -100,8 +101,27 @@ The pipeline of operations is composed as follows:
 \end{itemize}
 The choice of creating one dataframe for each $S*S$ square in the grid allows to fully exploit the parallelism offered by Spark. In this way the master node always has data to send to the workers to keep them busy until the end of the computation. This approach should optimize the CPU usage in the worker nodes, taking advantage of the full computation power made available by the cluster.
 \subsection{Avoiding recomputation}
-%TODO: describe here the idea about how to avoid recomputing everithing from scratch
-TODO
+One of the main issues these kind of tools has to face is the overall time to answer a user query.\\
+The main idea bihind this feature can be better explained referring to Figure \ref{recomputation}. The top-left square represents an area (\emph{oldA}) the tool already computed the topics for in a previous run, while the bottom-right one a new area (\emph{newA}) of interest. It would be useful not to recompute the topics for the whole \emph{newA}, since \emph{oldA} and \emph{newA} have a part in common (ie. \emph{commonA}, the blue square). This can be achieved trining the LDA model only on the white area without including the \emph{commonA} part, as it would happen without this feature. As the blue region becomes bigger, the whole run of the tool will take less time with respect to a naive implementation. This improvement is due to the fact that \emph{newA} contains less points and thus the underlying LDA model will be trained with fewer items.\\
+When dealing with the scenarios mentioned above, the overall result returned for \emph{newA} must take the topics coming from \emph{commonA} into account. The LDA returns as output a list containing the topics in the following form:
+\begin{equation}
+    \begin{split}
+        [\,probability_0,\,topic_0\,] \\
+        \cdots \\
+        [\,probability_k,\,topic_k\,]
+    \end{split}
+\end{equation}
+The lists computed starting both from \emph{newA} and \emph{commonA} have be merged, producing a single topic lisk of length \emph{k} as output. The merging procedure is implemented as follows: the list produced starting from \emph{newA} is considered as is, while the probability values in the list produced starting from \emph{oldA} are multiplyed by a factor \emph{f} computed as shown in Equation \ref{factor}.
+\begin{equation}\label{factor}
+    f = \frac{area_{commonA}}{area_{oldA}}
+\end{equation}
+In this way \emph{f} weights the topics previously found for \emph{oldA} with respect to the size of \emph{commonA} when computing the tipics starting from \emph{newA}. To retrieve the final output all the topics are ordered by decreasing probability values and  the first \emph{k} of them are taken.
+
+\begin{figure}[t]
+  \center{\includegraphics[width=0.22\textwidth]{recomputation.png}}
+  \caption{Idea to avoid useless recomputation.}
+  \label{recomputation}
+\end{figure}
 
 \section{Architecture}
 Apache Spark and all the other big data distributed frameworks are thought to be set up in a cluster of machines. In this way it is possible to exploit its distributed mode and all the computation power from the worker nodes. To achive this Google Dataproc\footnote{\url{https://cloud.google.com/dataproc/}} on the Google Compute Engine\footnote{\url{https://cloud.google.com/compute/}} (GCE) is used to provision and setup a Spark cluster.\\
@@ -175,7 +195,8 @@ Finally, Figure \ref{step} shows the performance keeping the selected region unc
 \section{Conclusions and future work}
 As described in Section \ref{experiments} quite good results are achieved from the scalability point of view. Even though the whole dataset size is not in the order gigabytes, the results are quite promising.\\
 Further developments of this work may involve the creation of a graphical user interface (GUI), allowing the users to select the \emph{A} area and all the other parameters in a more convenient way. This can be done implementing a web UI showing a map of the territory we own data about (eg. Google Maps or OpenStreetMap) communicating with the Spark cluster backend. Once succeeded the results can be retrieved and shown to the user either as a table or as a chart.\\
-Furthermore some attention should be put to the visualization of the raw results of the Spark jobs. A neat and well organized presentation can improve not only immediate interpretation of the results, but also the usability of the tool for the general public.
+Moreover some attention should be put to the visualization of the raw results of the Spark jobs. A neat and well organized presentation can improve not only immediate interpretation of the results, but also the usability of the tool for the general public.\\
+Finally there is room for improvement in the part avoiding useless recomputation. For example it could be implemented using the map-reduce paradigm, furtherly incrementing the performance from the scalability standpoint. 
 
 
 %\end{document}  % This is where a 'short' article might terminate
