@@ -21,6 +21,8 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
     data = data.filter(lambda x: x != header)
     result_to_write = []
     squares = get_squares(topLeft, bottomRight, step)
+    print(squares)
+    return
     # start computing elapsed time here
     start_time = time.time()
     data = data.map(lambda x: is_inside(x, topLeft, bottomRight, step, squares)). \
@@ -113,9 +115,10 @@ if __name__ == '__main__':
     parser.add_argument('bry', type=float, help='bottom right point y coordinate')
     parser.add_argument('step', type=float, help='the square side size')
     parser.add_argument('dataset', type=str, help='the path to the input dataset')
+    parser.add_argument('recomputation', type=int, help='flag to activate recomputation')
     args = parser.parse_args()
     # create area delimeter points
-    Point = namedtuple('Point', ['x', 'y'])
+
     topLeft = Point(args.tlx, args.tly)
     bottomRight = Point(args.brx, args.bry)
     print("Top left = ({},{})".format(topLeft.x, topLeft.y))
@@ -124,5 +127,11 @@ if __name__ == '__main__':
     if args.dataset[:3] == "gs:":
         gfs = True
     sc = SparkContext(appName="topic_zoomer", pyFiles=["./utils.py"])
-    compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs)
 
+    tmp = [[Point(x=3, y=6), Point(x=6, y=3)]]
+    if not is_equal(topLeft, bottomRight, tmp[0]):
+        for diff in get_diff_squares(topLeft, bottomRight, tmp):
+            print(diff)
+        #    compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs)
+    else:
+        print("equal")
