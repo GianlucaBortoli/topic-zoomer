@@ -100,7 +100,7 @@ The pipeline of operations is composed as follows:
     \end{itemize}
 \end{itemize}
 The choice of creating one dataframe for each $S \times S$ square in the grid allows to fully exploit the parallelism offered by Spark. In this way the master node always has data to send to the workers to keep them busy until the end of the computation. This approach should optimize the CPU usage in the worker nodes, taking advantage of the full computation power made available by the cluster.
-\subsection{Avoiding recomputation}
+\subsection{Avoiding recomputation}\label{avoidingRecomputation}
 One of the main issues these kind of tools has to face is the overall time to answer a user query.\\
 The main idea bihind this feature can be better explained referring to Figure \ref{recomputation}. The top-left square represents an area (\emph{oldA}) the tool already computed the topics for in a previous run, while the bottom-right one a new area (\emph{newA}) of interest. It would be useful not to recompute the topics for the whole \emph{newA}, since \emph{oldA} and \emph{newA} have a part in common (ie. \emph{commonA}, the blue square). This can be achieved trining the LDA model only on the white area without including the \emph{commonA} part, as it would happen without this feature. As the blue region becomes bigger, the whole run of the tool will take less time with respect to a naive implementation. This improvement is due to the fact that \emph{newA} contains less points and thus the underlying LDA model will be trained with fewer items.\\
 When dealing with the scenarios mentioned above, the overall result returned for \emph{newA} must take the topics coming from \emph{commonA} into account. The LDA returns as output a list containing the topics in the following form:
@@ -118,7 +118,7 @@ The lists computed starting both from \emph{newA} and \emph{commonA} have be mer
 In this way \emph{f} weights the topics previously found for \emph{oldA} with respect to the size of \emph{commonA} when computing the tipics starting from \emph{newA}. To retrieve the final output all the topics are ordered by decreasing probability values and  the first \emph{k} of them are taken.
 
 \begin{figure}[t]
-  \center{\includegraphics[width=0.22\textwidth]{recomputation.png}}
+  \center{\includegraphics[width=0.22\textwidth]{recomputationSchema.png}}
   \caption{Idea to avoid useless recomputation.}
   \label{recomputation}
 \end{figure}
@@ -145,7 +145,7 @@ Moreover it is fully integrated with Google Cloud Storage (GCS), a flexible, sca
 
 
 \section{Experiments}\label{experiments}
-% TODO: include also the experiment about recomputation
+The experiments shown in this section focus on a quantitative rather than a qualitative performances of the system. Measuring timings is a way to provide unbiased results regarding the real its ability to scale and respond to queries.\\
 Some performance measuser has to be computed in order to measure how Topic-zoomer behaves under different scenarios. In order to better understand the results, Table \ref{datasets} should be taken as reference. It displays the composition and the sizes of the input data used throughout all the experiments. As it is possible to see, the whole dataset (i.e. \emph{input\_100}) is split into different parts with increasing size in order to be able to run the experiments with different volumes of data.
 
 \begin{table}[]
@@ -170,10 +170,11 @@ The four different test procedures are thought to highlight how the tool behaves
 The \emph{time} it takes to display a result is very important when dealing with this type of systems. Therefore this can be considered as the main measure to state how well such systems perform.\\
 Moreoreover a single run for a test cannot be blindly trusted. The same algorithm with the same input may take very different amount of time to output a result due to cold start issues with the Spark cluster, especially when dealing with relatively small datasets. Thus all the charts presented in this section are generated after repeating every test 4 times. The number of repetitions represents a tradeoff between the time taken to run the experiment and the number of runs that would be needed to retrieve statistically significant timing result. As a result, the average among the 4 identical runs is computed and shown as value for each one of them, while the red vertical bars show the difference between the best and the worst performing run.\\
 
-The graph in Figure \ref{scalability} shows how Topic-zoomer scales with respect to the dataset size. The time in the \emph{y} axis is shown in \emph{log scale}, while the \emph{x} axis represents the percentage of the whole dataset used. It is clear how the time taken by the tool to infer the topics is not exponential in the size of the input data. Thus it is possible to state that Topic-zoomer scales properly and in a linear manner.  
+The graph in Figure \ref{scalability} shows how Topic-zoomer scales with respect to the dataset size. The time in the \emph{y} axis is shown in \emph{logarithmic scale}, while the \emph{x} axis represents the percentage of the whole dataset used. It is clear how the time taken by the tool to infer the topics is not exponential in the size of the input data. Thus it is possible to state that Topic-zoomer scales properly and in a linear manner.  
 Another important aspect while processing a large amount of data is to show the worst and the best case scenarios for the algorithm. The LDA algorithm is faster when deals with few points located inside the region selected by the user, because the underlying model to be trained is smaller.\\
-Figure \ref{square} depicts how performances degrade increasing the size of the region selected. The time in the ordinate axis is always in log scale to allow a more direct interpretation of the chart. Moreover, in this experiment the grid size (i.e. the \emph{step}) is set to be equal to te one of the selected area \emph{A}. It is not surprising that the time trend in Figure \ref {square} is nearly the same as the one in Figure \ref{scalability}. This means that selecting bigger areas via the top-left and bottom-right corners is the equivalent of having a bigger input dataset.\\  
-Finally, Figure \ref{step} shows the performance keeping the selected region unchanged, while the \emph{S} parameter describing the inner grid increases. For this experiment, the selected top-left and bottom-right corners formed a square whose side size is 5. The graph shows a huge increase increasing the grid size from 2 to 3 and from 3 to 4. Moreover, when the step \emph{S} is set to the size of the whole area \emph{A} the time taken to complete the topic extraction seems to decrease. This corroborates the idea that the selection of the \emph{S} parameter highly influences the computation time and that the worst case for the algorithm is when the grid size is set to the one of the side of \emph{A}.
+Figure \ref{square} depicts how performances degrade increasing the size of the region selected. The time in the ordinate axis is always in logarithmic scale to allow a more direct interpretation of the chart. Moreover, in this experiment the grid size (i.e. the \emph{step}) is set to be equal to te one of the selected area \emph{A}. It is not surprising that the time trend in Figure \ref{square} is nearly the same as the one in Figure \ref{scalability}. This means that selecting bigger areas via the top-left and bottom-right corners is the equivalent of having a bigger input dataset.\\  
+In addition, Figure \ref{step} shows the performance keeping the selected region unchanged, while the \emph{S} parameter describing the inner grid increases. For this experiment, the selected top-left and bottom-right corners formed a square whose side size is 5. The graph shows a huge increase increasing the grid size from 2 to 3 and from 3 to 4. Moreover, when the step \emph{S} is set to the size of the whole area \emph{A} the time taken to complete the topic extraction seems to decrease. This corroborates the idea that the selection of the \emph{S} parameter highly influences the computation time and that the worst case for the algorithm is when the grid size is set to the one of the side of \emph{A}.\\
+Finally, Figure \ref{recomputation} highlights the effect of the method employed to avoid recomputation described in Section \ref{avoidingRecomputation} using the \emph{input\_15} dataset. It is possible to see how the time taken to complete the topic extraction decreases as the percentage of the \emph{commonA} area increases. This is clearly due to the smaller amount of points to be considered when training the LDA model. As a result, this method allows Topic-zoomer to run significantly faster even when dealing with rather small input data. 
 
 \begin{figure}[t]
   \center{\includegraphics[width=0.5\textwidth]{scalability.png}}
@@ -189,6 +190,11 @@ Finally, Figure \ref{step} shows the performance keeping the selected region unc
   \center{\includegraphics[width=0.5\textwidth]{increasing_step.png}}
   \caption{Performance with different grid size.}
   \label{step}
+\end{figure}
+\begin{figure}[t]
+  \center{\includegraphics[width=0.5\textwidth]{recomputation.png}}
+  \caption{Timings trend avioding recomputation.}
+  \label{recomputation}
 \end{figure}
 
 
