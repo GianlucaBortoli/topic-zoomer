@@ -135,6 +135,7 @@ if __name__ == '__main__':
     results = []
     if recomputation:
         computedSquares = get_computed_squares()
+    print("Computed squares = {}".format(computedSquares))
 
     if len(computedSquares) != 0:
         # use recomputation
@@ -149,12 +150,13 @@ if __name__ == '__main__':
     else:
         # do not use recomputation
         results.append(compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs))
-    # if recomputation is not enabled do cleanup
+
+    # if recomputation is not enabled do cleanup before saving results
     if not recomputation:
         rmFolderHdfsCmd = 'hdfs dfs -rm -r -f {}'.format(recFileFolder)
         rmFolderHdfsRes = subprocess.call(shlex.split(rmFolderHdfsCmd))
         res = "{}, {}, {}, {}, ".format(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y)
-        # properly format output
+        # properly format output and save it to HDFS
         tmp = []
         for r in results:
             for r1 in r:
@@ -167,11 +169,14 @@ if __name__ == '__main__':
         # cleanup if needed
         if rmFolderHdfsRes:
             print('rmFolder: {}'.format(rmFolderHdfsRes))
-            print('Something went wrong while copying results')
+            print('Something went wrong during cleanup')
         if gfs:
+            # copy recomputation stuff from HDFS to local FS
+            copyRecFileCmd = 'hdfs dfs -copyToLocal {} /tmp'.format(recFileFolder)
+            copyRecFileRes = subprocess.call(shlex.split(copyRecFileCmd))
             copyRecBucketCmd = 'gsutil cp -r {} {}'.format(recFileFolder, gfs_output_path_hdfs)
             copyRecBucketRes = subprocess.call(shlex.split(copyRecBucketCmd))
             # some exit code checks
             if copyRecBucketRes:
                 print('bucketResRec: {}'.format(copyRecBucketRes))
-                print('Something went wrong while copying results')
+                print('Something went wrong copying recomputation files to bucket')

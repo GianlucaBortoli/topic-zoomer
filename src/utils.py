@@ -20,6 +20,7 @@ def check_step(topLeft, bottomRight, step):
 def get_computed_squares():
     result = []
     recFileName = "/tmp/Topic_Zoomer_recomputation/recomputation.txt"
+    # remove previous recomputation results (if any)
     shutil.rmtree(recFileFolder, ignore_errors=True)
     if os.path.isfile(recFileName):
         os.remove(recFileName)
