@@ -9,7 +9,6 @@ from utils import *
 import csv, argparse, time
 import shlex, subprocess
 
-
 def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
     sqlContext = SQLContext(sc)
     data = sc.textFile(datasetPath)
@@ -102,6 +101,8 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
             print('bucketResRec: {}'.format(copyRecBucketRes))
             print('Something went wrong while copying results')
     return res_computation
+
+
 if __name__ == '__main__':
     # NOTE: env variable SPARK_HOME has to be set in advance
     # The check on the number of parameters is done automatically
@@ -150,7 +151,6 @@ if __name__ == '__main__':
         results.append(compute(sc, topLeft, bottomRight, args.step, args.dataset, args.k, gfs))
     # if recomputation is not enabled do cleanup
     if not recomputation:
-        recFileFolder = "/tmp/Topic_Zoomer_recomputation"
         rmFolderHdfsCmd = 'hdfs dfs -rm -r -f {}'.format(recFileFolder)
         rmFolderHdfsRes = subprocess.call(shlex.split(rmFolderHdfsCmd))
         res = "{}, {}, {}, {}, ".format(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y)

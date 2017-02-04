@@ -10,6 +10,7 @@ Point = namedtuple('Point', ['x', 'y'])
 reg = r"[^a-zA-Z| 0-9 | \']"
 reg_compiled = re.compile(reg)
 gfs_output_path_hdfs = "gs://topic-zoomer/results/"
+recFileFolder = "/tmp/Topic_Zoomer_recomputation"
 
 
 def check_step(topLeft, bottomRight, step):
@@ -18,7 +19,6 @@ def check_step(topLeft, bottomRight, step):
 
 def get_computed_squares():
     result = []
-    recFileFolder = "/tmp/Topic_Zoomer_recomputation"
     recFileName = "/tmp/Topic_Zoomer_recomputation/recomputation.txt"
     shutil.rmtree(recFileFolder, ignore_errors=True)
     if os.path.isfile(recFileName):

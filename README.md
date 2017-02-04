@@ -20,7 +20,7 @@ python crawler.py --input 100_wikipedia_urls --output out.csv --min 0 --max 100
 ## Example to run the topic extractor on Spark
 ```bash
 cd /path/to/repo/src
-/path/to/spark-submit topic_zoomer.py 5 0 100 100 0 100 ../data/test.csv
+/path/to/spark-submit topic_zoomer.py 5 0 100 100 0 100 ../data/test.csv 0
 ```
 
 ## Example to generate charts from timings
