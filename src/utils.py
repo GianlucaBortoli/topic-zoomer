@@ -12,11 +12,15 @@ reg_compiled = re.compile(reg)
 gfs_output_path_hdfs = "gs://topic-zoomer/results/"
 recFileFolder = "/tmp/Topic_Zoomer_recomputation"
 
-
+"""
+Check if step makes sense wrt dimension of the area
+"""
 def check_step(topLeft, bottomRight, step):
     return min(step, topLeft.y-bottomRight.y, bottomRight.x - topLeft.x)
 
-
+"""
+Get the old squares from the recomputation file
+"""
 def get_computed_squares():
     result = []
     recFileName = "/tmp/Topic_Zoomer_recomputation/recomputation.txt"
@@ -41,18 +45,26 @@ def get_computed_squares():
             result.append([tl, br])
     return result
 
-
+"""
+Get all the angles' coordinates from top-left
+and bottom-right corner
+"""
 def get_square_points(tl,br):
     bl = Point(tl.x, br.y)
     tr = Point(br.x, tl.y)
     return [tl, tr, bl, br]
 
-
+"""
+Check if two squares are equal
+"""
 def is_equal(inputTl, inputBr, computedSquares):
     return inputTl.x == computedSquares[0].x and inputTl.y == computedSquares[0].y and \
         inputBr.x == computedSquares[1].x and inputBr.y == computedSquares[1].y
 
-
+"""
+Compute the square diff betwrrk input and
+already computed ones
+"""
 def get_diff_squares(inputTl, inputBr, computedSquares):
     oldSquares = []
     output = []
@@ -96,7 +108,9 @@ def get_diff_squares(inputTl, inputBr, computedSquares):
                 print("Something gone wrong in diff")
         return output
 
-
+"""
+Get the common squares to avoid recomputation
+"""
 def get_common_squares(inputTl, inputBr, computedSquares):
     output = []
     oldSquares = []
@@ -126,26 +140,33 @@ def get_common_squares(inputTl, inputBr, computedSquares):
             print("Something gone wrong in common")
     return output
 
-
+"""
+Returns the name of the topic from the vocabulary vector
+"""
 def topic_render(x, word_numbers, vocab_array):  
     # specify vector id of words to actual words
     terms = x[0]
-    #prob = x[1]
     result = []
     for i in range(word_numbers):
         term = vocab_array[terms[i]]
         result.append(term)
     return result
 
-
+"""
+Remove punctuation via regex
+"""
 def remove_punctuation(row):
     return row[0], reg_compiled.sub('', row[1])
 
-
+"""
+Create document corpus as LDA input should be
+"""
 def create_corpus(x):
     return [x[0], DenseVector(x[1].toArray())]
 
-
+"""
+Assign the point to a specific square in the grid
+"""
 def is_inside(row, topLeft, bottomRight, step, squares):
     x = float(row[0])
     y = float(row[1])
@@ -176,8 +197,9 @@ def create_row(array):
     words = array[1]
     return id, Row(idd=id, words=words)
 
-
-# Determine if a point is inside a given square or not
+"""
+Determine if a point is inside a given square or not
+"""
 def point_inside_square(x, y, square):
     topLeft = square[0]
     bottomRight = square[1]
@@ -189,7 +211,9 @@ def point_inside_square(x, y, square):
         return False
 
 
-# topLeft and bottomRight are named tuples
+"""
+Create internal grid with size S*S
+"""
 def get_squares(topLeft, bottomRight, step):
     # every little square is defined as topLeft and
     # bottomRight angles (as namedtuples)

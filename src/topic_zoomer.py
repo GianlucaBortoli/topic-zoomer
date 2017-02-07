@@ -34,6 +34,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
     for df in data.collect():
         if df:
             allDf.append([df[0], sqlContext.createDataFrame(df[1])])
+
     for docDFs in allDf:
         docDF = docDFs[1]
         squareId = docDFs[0]
@@ -49,7 +50,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
         newDocDF_ger = StopWordsRemover(inputCol="filtered_ita", outputCol="filtered_ger"). \
             transform(newDocDF_ita)
         newDocDF_ger= newDocDF_ger.drop('filtered_ita')
-        #print(newDocDF_ger.collect())
+
         model = CountVectorizer(inputCol="filtered_ger", outputCol="vectors"). \
             fit(newDocDF_ger)
         result = model.transform(newDocDF_ger)
@@ -57,7 +58,6 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
         # cluster the documents into the k topics using LDA
         ldaModel = LDA.train(corpus, k=k, maxIterations=100, optimizer='online')
         vocabArray = model.vocabulary
-        #print("Learned topics over vocab of {} words".format(ldaModel.vocabSize()))
         wordNumbers = 10  # number of words per topic
         topicIndices = sc.parallelize(ldaModel.describeTopics(maxTermsPerTopic=wordNumbers))
 
@@ -75,6 +75,7 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
         res = "{}, {}, {}, {}, {}".format(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y, s.join(topics_label))
         result_to_write.append(res)
         res_computation.append(topics_label)
+
     end_time = time.time()
     elapsed_time = end_time - start_time
     result_to_write.append(elapsed_time)
@@ -85,8 +86,8 @@ def compute(sc, topLeft, bottomRight, step, datasetPath, k, gfs):
         output_folder = "/tmp/Topic_Zoomer_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + '_' + size
     else:
         output_folder = "Topic_Zoomer_" + str(time.ctime(start_time)).replace(' ', '_').replace(':', '-') + '_' + size
-
     to_write.saveAsTextFile(output_folder)
+
     if gfs:
         copyHdfsCmd = 'hdfs dfs -copyToLocal {} {}'.format(output_folder, output_folder)
         copyBucketCmd = 'gsutil cp -r {} {}'.format(output_folder, gfs_output_path_hdfs)
@@ -126,9 +127,10 @@ if __name__ == '__main__':
     print("Top left = ({},{})".format(topLeft.x, topLeft.y))
     print("Bottom right = ({},{})".format(bottomRight.x, bottomRight.y))
     print("Step = {}".format(args.step))
+    # check if google filesystem (bucket) is used
     if args.dataset[:3] == "gs:":
         gfs = True
-
+    # create Spark context
     sc = SparkContext(appName="topic_zoomer", pyFiles=["./utils.py"])
     start_isEqual_time = time.time()
     computedSquares = []
