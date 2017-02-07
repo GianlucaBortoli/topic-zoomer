@@ -96,5 +96,19 @@ ENV/
 
 # logfiles
 *.log
-
+# spark stuff
 spark-warehouse
+# latex stuff
+*.swp
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.pdf
+*.nav
+*.snm
+*.vrb
+*~
+.~*

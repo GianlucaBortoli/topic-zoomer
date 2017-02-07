@@ -6,13 +6,25 @@ interest by means of a top left and a bottom right point and a step S to further
 divide this area into squares (of size SxS).
 
 # Requirements
-* python3
-* pip dependencies installed via `pip install -r requirements.txt`
-* working spark environment
+* python3 version <= 3.5 (it will not work on python3.6 due to some incompatibility between python3.6 and pySpark)
+* pip dependencies installed via `pip install -r requirements.txt` (see _init.sh_ script)
+* working Spark environment
 
 # How to run the tool
-## Example
+## Generating a dataset from URL file
+```bash
+cd /path/to/repo/data
+python crawler.py --input 100_wikipedia_urls --output out.csv --min 0 --max 100
+```
+
+## Running the topic extractor on Spark
 ```bash
 cd /path/to/repo/src
-/path/to/spark-submit topic_zoomer.py --tlx 0 --tly 100 --brx 100 --bry 0 --step 50 --dataset ../data/test.csv
+/path/to/spark-submit topic_zoomer.py 5 0 100 100 0 100 ../data/test.csv 0
+```
+
+## Generating charts from timings
+```bash
+cd /path/to/repo/charts
+python generate_charts.py --input timings.csv --output out
 ```
