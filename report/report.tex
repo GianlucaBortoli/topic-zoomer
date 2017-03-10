@@ -49,9 +49,9 @@ This kind of problems is a challenge for traditional programming paradigms, sinc
 
 
 \section{Related work}
-URL categorization is a task that many people and companies are addressing in the last few years, pushing even to the categorization of the whole World Wild Web. Some of the companies involved in this kind of analysis are Cyren\footnote{\url{http://www.cyren.com/url-category-check.html}} and BrightCloud\footnote{\url{https://www.brightcloud.com/tools/change-request-url-categorization.php}}. Moreover, a huge number of academic researches have been published and also some patents\footnote{\url{https://www.google.com/patents/US8078625}} have been filed on the subject.\\
-However, the specific case of geotagged URLs has not raised so much interest neither in the academic nor in the developer communities.
-
+URL categorization is a task that many people and companies are addressing in the last few years, pushing even to the categorization of the whole World Wild Web. Some of the companies involved in this kind of analysis are Cyren\footnote{\url{http://www.cyren.com/url-category-check.html}} and BrightCloud\footnote{\url{https://www.brightcloud.com/tools/change-request-url-categorization.php}}. Moreover, a huge number of academic researches have been published and also some patents\footnote{\url{https://www.google.com/patents/US8078625}} have been filed on the subject. However, the specific case of geotagged URLs has not raised so much interest neither in the academic nor in the developer communities.\\
+Furthermore, when approaching problems related to Big Data, the challange is to deal with huge amounts of data that cannot fit in a single machine. This implies that merely sequential solutions are not admitted, since they cannot handle such input size and are able to run the computation only on a single machine. Thus a distributed data processing framework is the only feasible way to solve these kind of problems and achieve scalability\cite{scalability_performances}.\\
+Nowadays the most known and used platforms are Apache Hadoop and Apache Spark. The core part of Topic-zoomer makes use of the latter, since Spark is provably faster\cite{evaluation, evaluation2}. This performance gap is mainly due to the in-memory nature of Spark and its acyclic data flow among the worker nodes. Moreover, this work makes use of Spark DataFrames rather than RDDs for multiple reasons. First, a DataFrame has a tabular structure that allows the Spark engine to run a lot of optimizations on the queries. Moreover, it allows sorting and shuffling operations without deserializing the data structure. Finally the DataFrame's API allows to build relational query plans\cite{relational_query} that the Spark Catalyst optimizer is able to execute.  
 
 \section{Problem definition}
 The task Topic-zoomer aims to solve can be better described starting from its \emph{input} and \emph{output} data.\\
@@ -71,7 +71,16 @@ In this way \emph{A} is divided into squares of size $S \times S$ and the \emph{
 
 
 \section{Solution}
-This section describes in detail all the steps needed to realize this tool, from the initial web page download to the map-reduce operations taken by Spark. The order by which they are presented reflects the one that was followed during the experiments.
+This section describes in detail all the steps needed to realize this tool, from the initial web page download to the map-reduce operations taken by Spark. The order by which they are presented reflects the one that was followed during the experiments. Furthermore, Figure \ref{solution} represents the architecture of the overall solution.
+\begin{figure*}
+  \center{\includegraphics[width=0.55\textwidth]{solution.png}}
+  \caption{The schema representing the overall solution.}
+  \label{solution}
+\end{figure*}
+
+\subsection{Parallelized and sequential versions}
+As stated before, when dealing with real Big Data problems using an engine for large-scale data processing is a must. However, if the input size is not large enough, these systems exploiting the map-reduce paradigm may not be the most performing solution. This is due to the fact that they introduce some overhead in the computation, since the workload has to be split into multiple tasks to be assigned to the workers, the input data for the computation needs to be sent to them and only after the real computation the final result can be retrieved.\\
+This architecture, which is nearly invisible to the programmer, clearly introduces some delay with respect to a classic sequential solution. On the other hand, when the size of the data cannot fit in a single machine, a distributed computing system is the only feasible way to solve such problems. Thus, only products like Spark allow to process this huge amount of information and achieve scalability.
 \subsection{Data collection and preprocessing}\label{preprocessing}
 The first task was to transform an initial dataset with the form shown in \ref{dataset} into another one of the form
 \begin{equation}\label{datasetClean}
@@ -84,25 +93,38 @@ After downloading the web pages, the Spark pipeline is ready to run on the clean
 Among all the ways to extract topic, the \emph{Latent Dirichlet Allocation}\cite{lda} (LDA) algorithm is chosen as \emph{L} to find the topics of the dataset in general. LDA is a generative and probabilistic model for collections of discrite data such as text corpora. It is a Bayesian hierarchical model, where each topic is modeled over an underlying set of topic probabilities. LDA is a good candidate when choosing between different methods to classify text. This work uses the implementation inside the Spark MLlib for the inference step.\\
 From a higher perspective LDA can be seen as a clustering technique, whose goal is to divide the document corpora given as input into \emph{k} clusters, which are the topics to be retrieved from the text.
 \subsection{Spark pipeline}
-Spark is a framework that allows to write parallel applications in many languages using the map-reduce paradigm. Python\footnote{For the seek of completeness, Python3 with version \textless\,3.6 is used.} is chosen for the development of this work in order to focus on the real data manipulation and analysis rather than continuously dealing with language-specific issues. Moreover, the Python interface for Spark is very concise and makes the application maintainable in long-term projects.\\
-The pipeline of operations is composed as follows:
-\begin{itemize}
+When dealing with Big Data problems like the one discussed in this paper, it is mandatory to use a map\-reduce approach in order to be able reach a solution. Nevertheless, in order to solve it fast some kind of parallelization and workload optimization is needed. For this reason the multi\-step parallelized procedure following the map-reduce pattern is written using the Spark framework. This tool also allows to write applications that scales as the input size increases.\\
+The Python\footnote{For the seek of completeness, Python3 with version \textless\,3.6 is used.} language is chosen for the development of this work in order to focus on the real data manipulation and analysis rather than continuously dealing with language-specific issues. Moreover, PySpark, the Python interface for the Spark, exposes the Spark programming model to the developer. Nevertheless, the APIs are very concise and makes the application maintainable in long-term projects.\\
+The pipeline of operations can be better visualized in Figure \ref{spark_pipeline} and it is composed as follows:
+\begin{enumerate}
+    \item load the dataset (in CSV format) generated by the pre-processing phase described in Section \ref{preprocessing} into the HDFS.
     \item provide Topic-zoomer with the parameters \emph{A}, \emph{S} and \emph{k}.
-    \item read the dataset (in CSV format) generated by the pre-processing phase described in Section \ref{preprocessing}.
     \item divide \emph{A} into squares of dimension $S \times S$ (ie. compute the inner grid).
-    \item filter the input data to retrieve only the points lying inside each square of the grid. At the same time a dataframe for each one of them is created.\\
-    Next, take the following steps for each square:
-    \begin{itemize}
-        \item remove punctuation and stopwords\cite{mmd} for the language of interest\footnote{In this specific case, Italian, English and German stopwords are removed due to the source of the dataset used for the experiments.} in order not to consider the most common short function words.
-        \item convert every text into vectors of token counts. This step is needed to prepare the dataframes with a format suitable for the LDA algorithm.
-        \item train the LDA model with the proper \emph{k} parameter.
-        \item collect the results from HDFS.
-    \end{itemize}
-\end{itemize}
-The choice of creating one dataframe for each $S \times S$ square in the grid allows to fully exploit the parallelism offered by Spark. In this way, the master node always has data to send to the workers to keep them busy until the end of the computation. This approach should optimize the CPU usage in the worker nodes, taking advantage of the full computation power made available by the cluster.
+    \item filter the input data to retrieve only the points lying inside each square of the grid. At the same time a dataframe for each one of them is created.
+    \item for each square remove punctuation and stopwords\cite{mmd} for the language of interest\footnote{In this specific case, Italian, English and German stopwords are removed due to the source of the dataset used for the experiments.} in order not to consider the most common short function words.
+    \item convert every text into vectors of token counts. This step is needed to prepare the dataframes with a format suitable for the LDA algorithm.
+    \item train the LDA model with the proper \emph{k} parameter.
+    \item collect the results from HDFS.
+\end{enumerate}
+
+\begin{figure*}
+  \center{\includegraphics[width=0.8\textwidth]{spark_pipeline.png}}
+  \caption{All the steps of the Spark pipeline represented in detail.}
+  \label{spark_pipeline}
+\end{figure*}
+
+The choice of creating one Spark DataFrame for each $S \times S$ square in the grid allows to fully exploit the parallelism and the workload optimization offered by Spark. In this way, the master node always has data to send to the workers to keep them busy until the end of the computation. This approach should optimize the CPU usage in the worker nodes, taking advantage of the full computation power made available by the entire cluster.\\
+Finally, the whole pipeline is written having in mind how Spark deals with the data and spreads it among all the worker nodes. Thus, the map\-reduce operations are organized in a way to minimize also the amount of data that needs to be exchanged between the nodes through the network. Even though the network physically connecting the machines used in the experiments displayed in Section \ref{experiments} is 2Gbps per core\footnote{\url{https://cloud.google.com/compute/docs/networks-and-firewalls}}, paying special attention to this aspect can make a huge difference from the overall performance standpoint. For this reason, to furtherly reduce the amount of intermediate representations inside the Spark pipeline, Topic-zoomer keeps only the bare essential information from the previous step inside each DataFrame. In this way it is possile to optimize not only how data flaws between the nodes, but also to reduce its size and thus minimize the network overhead.
 \subsection{Avoiding recomputation}\label{avoidingRecomputation}
 One of the main issues these kind of tools have to face is the overall time to answer a user query.\\
 The main idea behind this feature can be better explained referring to Figure \ref{recomputationSchema}. The top-left square represents an area (\emph{oldA}) already analyzed by the tool in a previous run, while the bottom-right one stands for a new area (\emph{newA}) of interest. It would be useful not to recompute the topics for the whole \emph{newA}, since \emph{oldA} and \emph{newA} have a part in common (ie. \emph{commonA}, the blue square). This can be achieved training the LDA model only on the red area without including the \emph{commonA} part, as it would happen without this feature. As the blue region becomes bigger, the whole run of the tool takes less time with respect to a na\"{i}ve implementation. This improvement is due to the fact that \emph{newA} contains less points and thus the underlying LDA model is trained with fewer items.\\
+Nevertheless, this functionality is useful on multiple situations:
+\begin{itemize}
+    \item the area \emph{A} selected remains unchanged while the size of the step \emph{S} is reduced or increased. This happens when a user wants to change the size of the grid.
+    \item the size of the step \emph{S} remains the same while the selected area \emph{A} is moved. This happens when a user moves the view to another part of the map to better focus on some other specific place.
+    \item both \emph{A} and \emph{S} are changed. 
+\end{itemize}
+In this way, this method is effective in every possible change in the user input.\\
 Dealing with the scenarios mentioned above, the overall result returned for \emph{newA} must take the topics coming from \emph{commonA} into account. The LDA returns as output a list containing the topics in the following form:
 \begin{equation}
     \begin{split}
@@ -119,7 +141,7 @@ In this way \emph{f} weights the topics previously found for \emph{oldA} with re
 
 \begin{figure}[t]
   \center{\includegraphics[width=0.22\textwidth]{recomputationSchema.png}}
-  \caption{Idea to avoid useless recomputation.}
+  \caption{A scenario where avoiding useless recomputation is applicable and useful.}
   \label{recomputationSchema}
 \end{figure}
 
@@ -199,7 +221,7 @@ Finally, Figure \ref{recomputation} highlights the effect of the method employed
 
 
 \section{Conclusions and future work}
-As described in Section \ref{experiments} quite good results are achieved from the scalability point of view. Even though the whole dataset size is not in the order gigabytes, the results are quite promising.\\
+As described in Section \ref{experiments} quite good results are achieved from the scalability point of view. Even though the whole dataset size is not in the order gigabytes, the results are quite promising. Thus it is possible to state that the proposed solution scaled in a quasi-linear manner.\\
 Further developments of this work may involve the creation of a graphical user interface (GUI), allowing the users to select the \emph{A} area and all the other parameters in a more convenient way. This can be done implementing a web UI showing a map of the territory we own data about (eg. Google Maps or OpenStreetMap) communicating with the Spark cluster backend. Once succeeded the results can be retrieved and shown to the user either as a table or as a chart.\\
 Moreover, some attention should be paid to the visualization of the raw results of the Spark jobs. A neat and well organized presentation can improve not only immediate interpretation of the results, but also the usability of the tool for the general public.\\
 Finally, there is room for improvement in the method proposed to avoid useless recomputation. For example it could be implemented using the map-reduce paradigm to further increment the performance from the scalability standpoint. 

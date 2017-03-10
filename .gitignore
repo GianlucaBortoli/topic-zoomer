@@ -112,3 +112,4 @@ spark-warehouse
 *.vrb
 *~
 .~*
+*.zip
