@@ -318,8 +318,8 @@ Notwithstanding that an optimized sequential solution may be faster with respect
         \For{\forNaiveCom}{
             \tcc{sequential word count on each cell}
             topic\_count $\longleftarrow$ seq\_word\_count(cell)\;
-            \tcc{get top topics}
-            top\_topics $\longleftarrow$ top\_(k, topic\_count)\;
+            \tcc{get top $k$ topics}
+            top\_topics $\longleftarrow$ top\_k(k, topic\_count)\;
         }
     }
     \caption{na\"{i}ve sequential topic computation}\label{alg6}
