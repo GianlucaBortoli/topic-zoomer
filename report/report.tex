@@ -13,11 +13,14 @@
 \SetKwFunction{CompComArea}{compute\_intersection}
 \SetKwFunction{CompDiffArea}{compute\_difference}
 \SetKwFunction{CrDT}{create\_dataframes}
+\SetKwFunction{SeqCom}{sequential\_computation}
 \SetStartEndCondition{ }{}{}%
 \SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{end for}%
 \newcommand{\forcond}{$df$ \KwTo{$dist\_clust\_pages$}}
 \newcommand{\forRecDiff}{$map$ \KwTo{$commonAreas$}}
 \newcommand{\forRecCom}{$map$ \KwTo{$computedMaps$}}
+\newcommand{\forNaive}{$page$ \KwTo{$pages$}}
+\newcommand{\forNaiveCom}{$cell$ \KwTo{$squares$}}
 \AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
 \graphicspath{ {./imgs/} }
 
@@ -148,7 +151,7 @@ Finally, the whole pipeline is written having in mind how Spark deals with the d
         \tcc{partition and load chunks of the RDD in each cluster's node}
         dist\_pages $\longleftarrow$ pages.map$(lambda$ page: csv.reader$($page$))$\;
         \tcc{create a grid defined by a list of squares with size $S$ x $S$}
-        squares $\longleftarrow$ getSquares$($area, step$)$\;
+        squares $\longleftarrow$ get\_squares$($area, step$)$\;
         dist\_clust\_pages $\longleftarrow$ dist\_pages
         \linebreak
         \tcc{assign a cell to each web page}
@@ -291,15 +294,36 @@ Nevertheless, this approach allows to build a solution that is suspendable, stop
 \subsection{Parallel vs. sequential}
 There are two main approaches when facing an algorithmic problem in general: a parallel and a sequential solution.\\
 The first may not be always feasible, since it requires the problem to be decomposable into separate steps that can be computed by different computing entities\footnote{These abstract entities can be either a thread, a process in the same machine or a process in a completely different machine.}. However, the case of text classification which Topic-zoomer aims to solve is one of them, since each web page can be treated on its own without influencing the computation on the others.\\
-On the contrary, the latter is a more "classic" approach that can be applied to a wider variety of problems. It often requires a more straightforward reasoning about the algorithm that solves the problem.\\
+On the contrary, the latter \ref{alg6} is a more "classic" approach that can be applied to a wider variety of problems. It often requires a more straightforward reasoning about the algorithm that solves the problem.\\
 The main benefits of a distributed solution using the Apache Spark framework like the one described in this work can be summarized as follows:
 \begin{itemize}
     \item it allows to use the memory of the entire pool of nodes. This is critical when the data cannot fit in the memory of a single machine, which normally happens when dealing with big data.
     \item the master node splits the whole workload assigning part of it (a task) to the worker nodes. In this way, the workers operate in a cooperative manner to achieve the final result. Thus, the available computation power is used as much as possible.
 \end{itemize}
-However, using such distributed computation frameworks clearly introduces some overhead both in terms of memory and performances. Because of the in-memory nature of Spark, the engine can encounter several bottlenecks such as CPU, RAM or network bandwidth. For this reason, tuning how data structures are serialized allows to achieve better performances both from the network and memory standpoints. Moreover, a correct configuration of the Spark cluster can highly enhence the overall performances \cite{li2015sparkbench}.\\
-Notwithstanding that an optimized sequential solution may be faster with respect to a distributed one when dealing with relatively small amounts of data (ie. when all data fit in main memory), it cannot scale when the size of the input becomes unmanageable for a single machine. Hence, employing big data distributed frameworks is mandatory to handle large data. 
-
+However, using such distributed computation frameworks clearly introduces some overhead both in terms of memory and performances. Because of the in-memory nature of Spark, the engine can encounter several bottlenecks such as CPU, RAM or network bandwidth. For this reason, tuning how data structures are serialized allows to achieve better performances both from the network and memory standpoints. Moreover, a correct configuration of the Spark cluster can highly enhance the overall performances \cite{li2015sparkbench}.\\
+Notwithstanding that an optimized sequential solution may be faster with respect to a distributed one when dealing with relatively small amounts of data (ie. when all data fit in main memory), it cannot scale when the size of the input becomes unmanageable for a single machine. Hence, employing big data distributed frameworks is mandatory to handle large data.
+\begin{algorithm}
+    \SetKwData{Left}{left}\SetKwData{This}{this}\SetKwData{Up}{up}
+    \SetKwFunction{Union}{Union}\SetKwFunction{FindCompress}{FindCompress}
+    \Fn{\SeqCom{}}{
+        \tcc{create grid}
+        squares $\longleftarrow$ get\_squares(area, step)\;
+        \tcc{assign cell}
+        \For{\forNaive}{
+            \tcc{get cell id}
+            cell\_id $\longleftarrow$ get\_cell\_id(page)\;
+            \tcc{append page into its cell}
+            squares[cell\_id].append(page)\;
+        }
+        \For{\forNaiveCom}{
+            \tcc{sequential word count on each cell}
+            topic\_count $\longleftarrow$ seq\_word\_count(cell)\;
+            \tcc{get top topics}
+            top\_topics $\longleftarrow$ top\_(k, topic\_count)\;
+        }
+    }
+    \caption{na\"{i}ve sequential topic computation}\label{alg6}
+\end{algorithm}
 \section{Architecture}
 Apache Spark and all the other big data distributed frameworks are thought to be set up in a cluster of machines. In this way it is possible to exploit its distributed mode and all the computation power from the worker nodes. To achieve this, Google Dataproc\footnote{\url{https://cloud.google.com/dataproc/}} on the Google Compute Engine\footnote{\url{https://cloud.google.com/compute/}} (GCE) is used to provision and setup a Spark cluster.\\
 
